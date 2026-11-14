@@ -1,0 +1,6 @@
+{
+  "name": "AuthServices Lab",
+  "description": "Interactive iOS AuthenticationServices, Face ID biometric, and Passwords App testing workbench with production Swift implementation code.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

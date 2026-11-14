@@ -1,0 +1,348 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Health check probe used on startup (read-only non-sensitive check)
+    match /test/connection {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'deviceTarget', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'deviceTarget', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 120))
+        && data.deviceTarget is string && data.deviceTarget in ['iphone-12-pro', 'iphone-16-pro']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidVaultCredential(data, userId, credentialId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'title',
+          'domain',
+          'username',
+          'password',
+          'authKind',
+          'hasPasskey',
+          'passkeySignCount',
+          'auditStatus',
+          'entropyBits',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'userId',
+          'title',
+          'domain',
+          'username',
+          'password',
+          'authKind',
+          'hasPasskey',
+          'passkeyId',
+          'passkeyPublicKey',
+          'passkeySignCount',
+          'totpSecret',
+          'sharedGroup',
+          'notes',
+          'auditStatus',
+          'entropyBits',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == credentialId
+        && isValidId(data.userId)
+        && data.userId == userId
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.domain is string && data.domain.size() >= 1 && data.domain.size() <= 253
+        && data.username is string && data.username.size() >= 1 && data.username.size() <= 254
+        && data.password is string && data.password.size() <= 256
+        && data.authKind is string && data.authKind in ['passkey', 'password', 'siwa']
+        && data.hasPasskey is bool
+        && (!('passkeyId' in data) || (data.passkeyId is string && data.passkeyId.size() <= 256))
+        && (!('passkeyPublicKey' in data) || (data.passkeyPublicKey is string && data.passkeyPublicKey.size() <= 512))
+        && data.passkeySignCount is int && data.passkeySignCount >= 0
+        && (!('totpSecret' in data) || (data.totpSecret is string && data.totpSecret.size() <= 128))
+        && (!('sharedGroup' in data) || (data.sharedGroup is string && data.sharedGroup.size() <= 120))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000))
+        && data.auditStatus is string && data.auditStatus in ['strong', 'reused', 'weak']
+        && data.entropyBits is int && data.entropyBits >= 0 && data.entropyBits <= 1024
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAuthAuditLog(data, userId, logId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'framework',
+          'operation',
+          'domain',
+          'biometricType',
+          'statusCode',
+          'success',
+          'latencyMs',
+          'detail',
+          'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'userId',
+          'framework',
+          'operation',
+          'domain',
+          'biometricType',
+          'statusCode',
+          'success',
+          'latencyMs',
+          'detail',
+          'createdAt'
+        ])
+        && isValidId(data.id)
+        && data.id == logId
+        && isValidId(data.userId)
+        && data.userId == userId
+        && data.framework is string && data.framework.size() >= 1 && data.framework.size() <= 64
+        && data.operation is string && data.operation.size() >= 1 && data.operation.size() <= 256
+        && data.domain is string && data.domain.size() >= 1 && data.domain.size() <= 253
+        && data.biometricType is string && data.biometricType in ['faceId', 'touchId', 'passcode']
+        && data.statusCode is string && data.statusCode.size() >= 1 && data.statusCode.size() <= 128
+        && data.success is bool
+        && data.latencyMs is int && data.latencyMs >= 0 && data.latencyMs <= 60000
+        && data.detail is string && data.detail.size() <= 512
+        && data.createdAt is timestamp;
+    }
+
+    function isValidChatMessage(data, userId, messageId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'role',
+          'text',
+          'model',
+          'taskMode',
+          'assistantRole',
+          'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'userId',
+          'role',
+          'text',
+          'model',
+          'taskMode',
+          'assistantRole',
+          'createdAt'
+        ])
+        && isValidId(data.id)
+        && data.id == messageId
+        && isValidId(data.userId)
+        && data.userId == userId
+        && data.role is string && data.role in ['user', 'model']
+        && data.text is string && data.text.size() >= 1 && data.text.size() <= 16000
+        && data.model is string && data.model.size() >= 1 && data.model.size() <= 64
+        && data.taskMode is string && data.taskMode.size() >= 1 && data.taskMode.size() <= 32
+        && data.assistantRole is string && data.assistantRole.size() >= 1 && data.assistantRole.size() <= 64
+        && data.createdAt is timestamp;
+    }
+
+    function isValidUniversalEmail(data, userId, emailId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'folder',
+          'from',
+          'to',
+          'subject',
+          'body',
+          'providerHint',
+          'isRead',
+          'isStarred',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'userId',
+          'folder',
+          'from',
+          'to',
+          'replyTo',
+          'subject',
+          'body',
+          'providerHint',
+          'otpCode',
+          'magicLinkUrl',
+          'isRead',
+          'isStarred',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == emailId
+        && isValidId(data.userId)
+        && data.userId == userId
+        && data.folder is string && data.folder in ['inbox', 'sent', 'drafts', 'relay']
+        && data.from is string && data.from.size() >= 3 && data.from.size() <= 254
+        && data.to is string && data.to.size() >= 3 && data.to.size() <= 254
+        && (!('replyTo' in data) || (data.replyTo is string && data.replyTo.size() <= 254))
+        && data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 300
+        && data.body is string && data.body.size() >= 1 && data.body.size() <= 16000
+        && data.providerHint is string && data.providerHint in ['mailto', 'gmail', 'outlook', 'icloud', 'proton', 'fastmail', 'yahoo']
+        && (!('otpCode' in data) || (data.otpCode is string && data.otpCode.size() <= 16))
+        && (!('magicLinkUrl' in data) || (data.magicLinkUrl is string && data.magicLinkUrl.size() <= 512))
+        && data.isRead is bool
+        && data.isStarred is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'deviceTarget', 'email', 'updatedAt']);
+      allow delete: if false;
+
+      match /credentials/{credentialId} {
+        allow get: if isValidId(userId) && isValidId(credentialId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(credentialId)
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidVaultCredential(incoming(), userId, credentialId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId)
+          && isValidId(credentialId)
+          && isOwner(userId)
+          && isValidVaultCredential(incoming(), userId, credentialId)
+          && incoming().id == existing().id
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title',
+            'username',
+            'password',
+            'authKind',
+            'hasPasskey',
+            'passkeyId',
+            'passkeyPublicKey',
+            'passkeySignCount',
+            'totpSecret',
+            'sharedGroup',
+            'notes',
+            'auditStatus',
+            'entropyBits',
+            'updatedAt'
+          ]);
+        allow delete: if isValidId(userId) && isValidId(credentialId) && isOwner(userId);
+      }
+
+      match /auditLogs/{logId} {
+        allow get: if isValidId(userId) && isValidId(logId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(logId)
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidAuthAuditLog(incoming(), userId, logId)
+          && incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isValidId(userId) && isValidId(logId) && isOwner(userId);
+      }
+
+      match /chatMessages/{messageId} {
+        allow get: if isValidId(userId) && isValidId(messageId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(messageId)
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidChatMessage(incoming(), userId, messageId)
+          && incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isValidId(userId) && isValidId(messageId) && isOwner(userId);
+      }
+
+      match /emails/{emailId} {
+        allow get: if isValidId(userId) && isValidId(emailId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(emailId)
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidUniversalEmail(incoming(), userId, emailId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId)
+          && isValidId(emailId)
+          && isOwner(userId)
+          && isValidUniversalEmail(incoming(), userId, emailId)
+          && incoming().id == existing().id
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'folder',
+            'from',
+            'to',
+            'replyTo',
+            'subject',
+            'body',
+            'providerHint',
+            'otpCode',
+            'magicLinkUrl',
+            'isRead',
+            'isStarred',
+            'updatedAt'
+          ]);
+        allow delete: if isValidId(userId) && isValidId(emailId) && isOwner(userId);
+      }
+    }
+  }
+}

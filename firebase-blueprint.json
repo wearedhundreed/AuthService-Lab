@@ -1,0 +1,364 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile and preferred iOS device target.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "deviceTarget": {
+          "type": "string",
+          "enum": ["iphone-12-pro", "iphone-16-pro"],
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "deviceTarget", "createdAt", "updatedAt"]
+    },
+    "VaultCredential": {
+      "title": "VaultCredential",
+      "description": "User-scoped iOS Passwords / Keychain credential entry.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253
+        },
+        "username": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 254
+        },
+        "password": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "authKind": {
+          "type": "string",
+          "enum": ["passkey", "password", "siwa"],
+          "maxLength": 16
+        },
+        "hasPasskey": {
+          "type": "boolean"
+        },
+        "passkeyId": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "passkeyPublicKey": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "passkeySignCount": {
+          "type": "integer"
+        },
+        "totpSecret": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "sharedGroup": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "auditStatus": {
+          "type": "string",
+          "enum": ["strong", "reused", "weak"],
+          "maxLength": 16
+        },
+        "entropyBits": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "title",
+        "domain",
+        "username",
+        "password",
+        "authKind",
+        "hasPasskey",
+        "passkeySignCount",
+        "auditStatus",
+        "entropyBits",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AuthAuditLog": {
+      "title": "AuthAuditLog",
+      "description": "Biometric and AuthenticationServices execution audit event.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "framework": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "operation": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "domain": {
+          "type": "string",
+          "maxLength": 253
+        },
+        "biometricType": {
+          "type": "string",
+          "enum": ["faceId", "touchId", "passcode"],
+          "maxLength": 16
+        },
+        "statusCode": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "latencyMs": {
+          "type": "integer"
+        },
+        "detail": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "framework",
+        "operation",
+        "domain",
+        "biometricType",
+        "statusCode",
+        "success",
+        "latencyMs",
+        "detail",
+        "createdAt"
+      ]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Persisted multi-turn Gemini assistant message.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "model"],
+          "maxLength": 16
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000
+        },
+        "model": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "taskMode": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "assistantRole": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "role", "text", "model", "taskMode", "assistantRole", "createdAt"]
+    },
+    "UniversalEmail": {
+      "title": "UniversalEmail",
+      "description": "User-scoped universal email message (inbox, sent, draft, or auth relay test).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "folder": {
+          "type": "string",
+          "enum": ["inbox", "sent", "drafts", "relay"],
+          "maxLength": 16
+        },
+        "from": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "to": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "replyTo": {
+          "type": "string",
+          "maxLength": 254
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000
+        },
+        "providerHint": {
+          "type": "string",
+          "enum": ["mailto", "gmail", "outlook", "icloud", "proton", "fastmail", "yahoo"],
+          "maxLength": 24
+        },
+        "otpCode": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "magicLinkUrl": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "isRead": {
+          "type": "boolean"
+        },
+        "isStarred": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "folder",
+        "from",
+        "to",
+        "subject",
+        "body",
+        "providerHint",
+        "isRead",
+        "isStarred",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile and iPhone target preferences isolated by userId."
+    },
+    "/users/{userId}/credentials/{credentialId}": {
+      "schema": { "$ref": "#/entities/VaultCredential" },
+      "description": "User's persisted iOS Passwords / Keychain credentials."
+    },
+    "/users/{userId}/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuthAuditLog" },
+      "description": "User's biometric and AuthenticationServices execution audit logs."
+    },
+    "/users/{userId}/chatMessages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "User's multi-turn Gemini assistant conversation history."
+    },
+    "/users/{userId}/emails/{emailId}": {
+      "schema": { "$ref": "#/entities/UniversalEmail" },
+      "description": "User's universal email messages, drafts, and authentication email tests."
+    }
+  }
+}

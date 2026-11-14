@@ -1,0 +1,47 @@
+{
+  "emails": [
+    {
+      "id": "mail-passkey-otp",
+      "folder": "inbox",
+      "from": "security@auth.demo-ios.app",
+      "to": "maya.lin@icloud.com",
+      "replyTo": "support@auth.demo-ios.app",
+      "subject": "Your AuthDemo iOS verification code: 482915",
+      "body": "Use the 6-digit verification code below to confirm your iPhone 12 Pro Passkey enrollment:\n\n482915\n\nThis message supports iOS UITextContentType.oneTimeCode AutoFill and universal email clients (Apple Mail, Gmail, Outlook, Proton, Fastmail).\n\nIf you did not request this Passkey registration on auth.demo-ios.app, safely ignore this message.",
+      "providerHint": "icloud",
+      "otpCode": "482915",
+      "isRead": false,
+      "isStarred": true,
+      "createdAt": "2026-11-14T20:37:37.654Z",
+      "updatedAt": "2026-11-14T20:37:37.654Z"
+    },
+    {
+      "id": "mail-universal-magic",
+      "folder": "inbox",
+      "from": "accounts@auth.demo-ios.app",
+      "to": "maya.lin@icloud.com",
+      "subject": "Universal Link Sign-In for iPhone 12 Pro",
+      "body": "Tap the Universal Link below from Apple Mail, Gmail, Outlook, or any mobile email app to complete passwordless authentication via Associated Domains (applinks:auth.demo-ios.app):\n\nhttps://auth.demo-ios.app/auth/callback?token=ml_9f8e7d6c5b4a\n\nOnce verified, you will be prompted to bind an ES256 Passkey to your Secure Enclave.",
+      "providerHint": "mailto",
+      "magicLinkUrl": "https://auth.demo-ios.app/auth/callback?token=ml_9f8e7d6c5b4a",
+      "isRead": false,
+      "isStarred": false,
+      "createdAt": "2026-11-14T18:40:37.654Z",
+      "updatedAt": "2026-11-14T18:40:37.654Z"
+    },
+    {
+      "id": "mail-siwa-relay",
+      "folder": "relay",
+      "from": "noreply@figma.com",
+      "to": "8x9k2p4m@privaterelay.appleid.com",
+      "replyTo": "8x9k2p4m@privaterelay.appleid.com",
+      "subject": "[Apple Private Relay] Confirm Sign in with Apple device binding",
+      "body": "Forwarded via Apple Hide My Email Relay (8x9k2p4m@privaterelay.appleid.com -> maya.lin@icloud.com).\n\nYour Figma account authenticated with Sign in with Apple on iPhone 12 Pro.\nUniversal email clients can reply directly to the relay address while preserving your real email privacy.",
+      "providerHint": "icloud",
+      "isRead": true,
+      "isStarred": false,
+      "createdAt": "2026-11-13T20:40:37.654Z",
+      "updatedAt": "2026-11-13T20:40:37.654Z"
+    }
+  ]
+}
