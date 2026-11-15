@@ -19,7 +19,7 @@ final class AuthenticationManager: NSObject, ObservableObject {
 
     private let relyingPartyID: String
 
-    init(relyingPartyID: String = "securepasswordmanager.net") {
+    init(relyingPartyID: String = "securepasswordmanager.tech") {
         self.relyingPartyID = relyingPartyID
         super.init()
     }
@@ -460,8 +460,8 @@ struct PasswordsSettingsView: View {
 <dict>
     <key>com.apple.developer.associated-domains</key>
     <array>
-        <string>webcredentials:securepasswordmanager.net</string>
-        <string>applinks:securepasswordmanager.net</string>
+        <string>webcredentials:securepasswordmanager.tech</string>
+        <string>applinks:securepasswordmanager.tech</string>
     </array>
     <key>com.apple.developer.applesignin</key>
     <array>
@@ -474,7 +474,7 @@ struct PasswordsSettingsView: View {
 <key>NSFaceIDUsageDescription</key>
 <string>Authenticate with Face ID to unlock Passkeys and saved passwords.</string>
 
-<!-- 3. https://securepasswordmanager.net/.well-known/apple-app-site-association -->
+<!-- 3. https://securepasswordmanager.tech/.well-known/apple-app-site-association -->
 {
   "applinks": {
     "details": [
@@ -489,6 +489,120 @@ struct PasswordsSettingsView: View {
   "webcredentials": {
     "apps": ["A1B2C3D4E5.com.authserviceslab.ios"]
   }
+}
+`,
+  },
+  {
+    filename: 'FreeAccountWebAuthView.swift',
+    path: 'Sources/Auth/FreeAccountWebAuthView.swift',
+    framework: 'ASWebAuthenticationSession + LocalAuthentication (Free Apple ID)',
+    summary:
+      'No-Developer-Account workaround for iPhone 12 Pro: combines Free-Team LAContext Face ID + Keychain with ASWebAuthenticationSession Safari Passkey sign-in (zero paid entitlements required).',
+    code: `import AuthenticationServices
+import LocalAuthentication
+import SwiftUI
+
+/// Works with a FREE Apple ID (Personal Team) in Xcode—no Paid Developer Account,
+/// no Associated Domains entitlement, and no Sign in with Apple capability needed.
+@MainActor
+final class FreeAccountAuthCoordinator: NSObject, ObservableObject {
+    @Published var signedInSessionToken: String?
+    @Published var statusMessage: String = "Ready for Face ID or Safari Passkey sign-in"
+
+    private let biometricService = BiometricAuthService()
+    private let keychainStore = KeychainCredentialStore()
+    private let domain: String
+
+    init(domain: String = "securepasswordmanager.tech") {
+        self.domain = domain
+        super.init()
+    }
+
+    /// 1. Native Face ID + Keychain (.biometryCurrentSet) — works 100% free on USB-deployed iPhone 12 Pro.
+    func unlockLocalKeychainWithFaceID(account: String) async {
+        do {
+            let context = try await biometricService.authenticate(
+                reason: "Verify Face ID to unlock local vault on iPhone 12 Pro"
+            )
+            if let existing = try? keychainStore.readBiometricSecret(account: account, context: context) {
+                signedInSessionToken = existing
+                statusMessage = "Unlocked Keychain secret via Face ID."
+            } else {
+                let demoSecret = "sess_\\(UUID().uuidString.prefix(12))"
+                try keychainStore.saveBiometricSecret(demoSecret, account: account)
+                signedInSessionToken = demoSecret
+                statusMessage = "Saved & bound new secret to Face ID (.biometryCurrentSet)."
+            }
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    /// 2. WebAuthn Passkeys via ASWebAuthenticationSession — triggers native iOS Passkey &
+    /// Passwords AutoFill sheets in Safari on https://securepasswordmanager.tech without AASA entitlements.
+    func signInViaSafariWebAuthn() {
+        guard let authURL = URL(string: "https://\\(domain)/") else { return }
+        let callbackScheme = "spm-auth"
+
+        let session = ASWebAuthenticationSession(
+            url: authURL,
+            callbackURLScheme: callbackScheme
+        ) { [weak self] callbackURL, error in
+            Task { @MainActor in
+                if let callbackURL {
+                    self?.signedInSessionToken = callbackURL.absoluteString
+                    self?.statusMessage = "Completed Safari WebAuthn Passkey session."
+                } else if let error {
+                    self?.statusMessage = error.localizedDescription
+                }
+            }
+        }
+        session.presentationContextProvider = self
+        session.prefersEphemeralWebBrowserSession = false
+        session.start()
+    }
+}
+
+extension FreeAccountAuthCoordinator: ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: \.isKeyWindow) ?? ASPresentationAnchor()
+    }
+}
+
+struct FreeAccountWebAuthView: View {
+    @StateObject private var coordinator = FreeAccountAuthCoordinator()
+    @State private var accountEmail = "maya.lin@icloud.com"
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Free Apple ID Provisioning (No $99 Account)") {
+                    TextField("Account Email", text: $accountEmail)
+                        .textContentType(.username)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+
+                    Button("Unlock Vault with Face ID (LAContext)") {
+                        Task { await coordinator.unlockLocalKeychainWithFaceID(account: accountEmail) }
+                    }
+
+                    Button("Sign in with Safari Passkeys (securepasswordmanager.tech)") {
+                        coordinator.signInViaSafariWebAuthn()
+                    }
+                }
+
+                Section("Status") {
+                    Text(coordinator.statusMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Free-Team iOS Auth")
+        }
+    }
 }
 `,
   },

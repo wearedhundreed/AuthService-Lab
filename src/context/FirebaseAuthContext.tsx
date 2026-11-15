@@ -51,7 +51,7 @@ interface FirebaseContextValue {
   deleteEmailFromCloud: (id: string) => Promise<void>;
 }
 
-export const DEFAULT_CUSTOM_DOMAIN = 'securepasswordmanager.net';
+export const DEFAULT_CUSTOM_DOMAIN = 'securepasswordmanager.tech';
 const CUSTOM_DOMAIN_STORAGE_KEY = 'authservices_custom_domain';
 
 export function normalizeDomain(raw: string): string {
@@ -64,7 +64,7 @@ export function normalizeDomain(raw: string): string {
     .split('#')[0]
     .split(':')[0]
     .replace(/\.+$/, '');
-  if (cleaned === 'auth.demo-ios.app') {
+  if (cleaned === 'auth.demo-ios.app' || cleaned === 'securepasswordmanager.net') {
     return DEFAULT_CUSTOM_DOMAIN;
   }
   if (cleaned.length >= 3 && cleaned.length <= 253 && !/\s/.test(cleaned) && cleaned.includes('.')) {

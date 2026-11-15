@@ -278,7 +278,7 @@ function createInitialCredentials(): CredentialRecord[] {
     {
       id: 'cred-demo-ios',
       title: 'AuthDemo iOS',
-      domain: 'securepasswordmanager.net',
+      domain: 'securepasswordmanager.tech',
       username: 'maya.lin@icloud.com',
       password: 'v7K9-mP3x-qR8w-nB2t',
       authKind: 'passkey',
@@ -370,7 +370,7 @@ function createInitialLogs(): AuthLogRecord[] {
       timestamp: new Date(now - 180_000).toISOString(),
       framework: 'LocalAuthentication',
       operation: 'LAContext.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)',
-      domain: 'securepasswordmanager.net',
+      domain: 'securepasswordmanager.tech',
       biometricType: 'faceId',
       statusCode: 'errSecSuccess (0)',
       success: true,
@@ -382,7 +382,7 @@ function createInitialLogs(): AuthLogRecord[] {
       timestamp: new Date(now - 120_000).toISOString(),
       framework: 'AuthenticationServices',
       operation: 'ASAuthorizationController.performRequests([PasskeyAssertion])',
-      domain: 'securepasswordmanager.net',
+      domain: 'securepasswordmanager.tech',
       biometricType: 'faceId',
       statusCode: 'ASAuthorizationError.none',
       success: true,
@@ -421,11 +421,11 @@ function createInitialEmails(): UniversalEmailRecord[] {
     {
       id: 'mail-passkey-otp',
       folder: 'inbox',
-      from: 'security@securepasswordmanager.net',
+      from: 'security@securepasswordmanager.tech',
       to: 'maya.lin@icloud.com',
-      replyTo: 'support@securepasswordmanager.net',
+      replyTo: 'support@securepasswordmanager.tech',
       subject: 'Your AuthDemo iOS verification code: 482915',
-      body: `Use the 6-digit verification code below to confirm your iPhone 12 Pro Passkey enrollment:\n\n482915\n\nThis message supports iOS UITextContentType.oneTimeCode AutoFill and universal email clients (Apple Mail, Gmail, Outlook, Proton, Fastmail).\n\nIf you did not request this Passkey registration on securepasswordmanager.net, safely ignore this message.`,
+      body: `Use the 6-digit verification code below to confirm your iPhone 12 Pro Passkey enrollment:\n\n482915\n\nThis message supports iOS UITextContentType.oneTimeCode AutoFill and universal email clients (Apple Mail, Gmail, Outlook, Proton, Fastmail).\n\nIf you did not request this Passkey registration on securepasswordmanager.tech, safely ignore this message.`,
       providerHint: 'icloud',
       otpCode: '482915',
       isRead: false,
@@ -436,12 +436,12 @@ function createInitialEmails(): UniversalEmailRecord[] {
     {
       id: 'mail-universal-magic',
       folder: 'inbox',
-      from: 'accounts@securepasswordmanager.net',
+      from: 'accounts@securepasswordmanager.tech',
       to: 'maya.lin@icloud.com',
       subject: 'Universal Link Sign-In for iPhone 12 Pro',
-      body: `Tap the Universal Link below from Apple Mail, Gmail, Outlook, or any mobile email app to complete passwordless authentication via Associated Domains (applinks:securepasswordmanager.net):\n\nhttps://securepasswordmanager.net/auth/callback?token=ml_9f8e7d6c5b4a\n\nOnce verified, you will be prompted to bind an ES256 Passkey to your Secure Enclave.`,
+      body: `Tap the Universal Link below from Apple Mail, Gmail, Outlook, or any mobile email app to complete passwordless authentication via Associated Domains (applinks:securepasswordmanager.tech):\n\nhttps://securepasswordmanager.tech/auth/callback?token=ml_9f8e7d6c5b4a\n\nOnce verified, you will be prompted to bind an ES256 Passkey to your Secure Enclave.`,
       providerHint: 'mailto',
-      magicLinkUrl: 'https://securepasswordmanager.net/auth/callback?token=ml_9f8e7d6c5b4a',
+      magicLinkUrl: 'https://securepasswordmanager.tech/auth/callback?token=ml_9f8e7d6c5b4a',
       isRead: false,
       isStarred: false,
       createdAt: new Date(now - 3600_000 * 2).toISOString(),
@@ -907,7 +907,7 @@ async function startServer() {
 
   // WebAuthn / Passkey Registration Options & Verification
   app.post('/api/webauthn/register/options', (req, res) => {
-    const { rpId = 'securepasswordmanager.net', username = 'maya.lin@icloud.com', displayName = 'Maya Lin' } = req.body as {
+    const { rpId = 'securepasswordmanager.tech', username = 'maya.lin@icloud.com', displayName = 'Maya Lin' } = req.body as {
       rpId?: string;
       username?: string;
       displayName?: string;
@@ -948,7 +948,7 @@ async function startServer() {
   app.post('/api/webauthn/register/verify', (req, res) => {
     const {
       challengeId,
-      domain = 'securepasswordmanager.net',
+      domain = 'securepasswordmanager.tech',
       username = 'maya.lin@icloud.com',
       biometricType = 'faceId',
       mode = 'simulated-ios',
@@ -1049,7 +1049,7 @@ async function startServer() {
 
   // WebAuthn / Passkey Authentication Options & Verification
   app.post('/api/webauthn/authenticate/options', (req, res) => {
-    const { rpId = 'securepasswordmanager.net' } = req.body as { rpId?: string };
+    const { rpId = 'securepasswordmanager.tech' } = req.body as { rpId?: string };
     const challengeId = crypto.randomUUID();
     const challenge = crypto.randomBytes(32).toString('base64url');
 
@@ -1473,7 +1473,7 @@ async function startServer() {
     const record: UniversalEmailRecord = {
       id: `mail-${crypto.randomUUID().slice(0, 8)}`,
       folder: body.folder || 'sent',
-      from: (body.from || 'developer@securepasswordmanager.net').trim(),
+      from: (body.from || 'developer@securepasswordmanager.tech').trim(),
       to,
       replyTo: body.replyTo?.trim() || undefined,
       subject,
@@ -1496,7 +1496,7 @@ async function startServer() {
     const {
       kind = 'otp',
       to = 'maya.lin@icloud.com',
-      domain = 'securepasswordmanager.net',
+      domain = 'securepasswordmanager.tech',
       providerHint = 'mailto',
     } = req.body as {
       kind?: 'otp' | 'magic-link' | 'passkey-alert' | 'relay';
@@ -1628,9 +1628,9 @@ async function startServer() {
   app.post('/api/tests/run', (req, res) => {
     const rawActiveDomain =
       typeof (req.body as { activeDomain?: unknown } | undefined)?.activeDomain === 'string'
-        ? ((req.body as { activeDomain: string }).activeDomain.trim().toLowerCase() || 'securepasswordmanager.net')
-        : 'securepasswordmanager.net';
-    const suiteDomain = rawActiveDomain.replace(/^https?:\/\//, '').split('/')[0] || 'securepasswordmanager.net';
+        ? ((req.body as { activeDomain: string }).activeDomain.trim().toLowerCase() || 'securepasswordmanager.tech')
+        : 'securepasswordmanager.tech';
+    const suiteDomain = rawActiveDomain.replace(/^https?:\/\//, '').split('/')[0] || 'securepasswordmanager.tech';
     const suiteStart = performance.now();
     const results: Array<{
       id: string;
@@ -1832,7 +1832,7 @@ async function startServer() {
       taskMode = 'general',
       assistantRole = 'security-architect',
       deviceTarget = 'iphone-12-pro',
-      activeDomain = 'securepasswordmanager.net',
+      activeDomain = 'securepasswordmanager.tech',
     } = req.body as {
       message?: string;
       history?: Array<{ role: 'user' | 'model'; text: string }>;
@@ -1848,8 +1848,8 @@ async function startServer() {
     }
 
     const safeDomain =
-      (activeDomain || 'securepasswordmanager.net').trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0] ||
-      'securepasswordmanager.net';
+      (activeDomain || 'securepasswordmanager.tech').trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0] ||
+      'securepasswordmanager.tech';
 
     const deviceLabel =
       deviceTarget === 'iphone-12-pro'

@@ -34,7 +34,7 @@ export const PasskeyRegistrationVisualizer: React.FC<PasskeyRegistrationVisualiz
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
-    const clean = activeDomain.trim() || 'securepasswordmanager.net';
+    const clean = activeDomain.trim() || 'securepasswordmanager.tech';
     setRpId(clean);
     setOrigin(`https://${clean}`);
     setPayload(
@@ -106,7 +106,7 @@ export const PasskeyRegistrationVisualizer: React.FC<PasskeyRegistrationVisualiz
             onChange={(e) => {
               const nextRp = e.target.value;
               setRpId(nextRp);
-              setOrigin(`https://${nextRp.trim().replace(/^https?:\/\//, '').split('/')[0] || 'securepasswordmanager.net'}`);
+              setOrigin(`https://${nextRp.trim().replace(/^https?:\/\//, '').split('/')[0] || 'securepasswordmanager.tech'}`);
             }}
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs text-slate-900 focus:border-sky-500 focus:outline-none"
           />

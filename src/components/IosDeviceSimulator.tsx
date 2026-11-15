@@ -903,8 +903,8 @@ export const IosDeviceSimulator: React.FC<IosDeviceSimulatorProps> = ({
                       className="mt-0.5 bg-transparent font-display text-base font-bold text-slate-900 focus:outline-none max-w-[230px] truncate"
                     >
                       <option value={activeDomain}>{activeDomain}</option>
-                      {activeDomain !== 'securepasswordmanager.net' && (
-                        <option value="securepasswordmanager.net">securepasswordmanager.net</option>
+                      {activeDomain !== 'securepasswordmanager.tech' && (
+                        <option value="securepasswordmanager.tech">securepasswordmanager.tech</option>
                       )}
                       {activeDomain !== 'github.com' && <option value="github.com">github.com</option>}
                       {activeDomain !== 'staging.internal.example' && (

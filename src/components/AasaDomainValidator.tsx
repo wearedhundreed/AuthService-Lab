@@ -157,6 +157,82 @@ export const AasaDomainValidator: React.FC<AasaDomainValidatorProps> = ({
   const cleanDomainLabel =
     domain.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0] || activeDomain;
 
+  const handleDownloadWebPasskeyHtml = () => {
+    const safeHost = cleanDomainLabel.replace(/[^a-z0-9.-]/gi, '') || 'securepasswordmanager.tech';
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${safeHost} — iPhone Passkey &amp; AutoFill Test</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 24px; }
+    .card { max-width: 440px; margin: 24px auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; }
+    h1 { font-size: 18px; margin: 0 0 6px; }
+    p { font-size: 13px; color: #475569; line-height: 1.5; margin: 0 0 16px; }
+    label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; margin-bottom: 12px; }
+    button { width: 100%; padding: 11px 14px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
+    .primary { background: #0284c7; color: #fff; }
+    .dark { background: #0f172a; color: #fff; }
+    pre { background: #020617; color: #e2e8f0; padding: 12px; border-radius: 8px; font-size: 11px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>${safeHost} Passkey Sandbox</h1>
+    <p>Works directly in iOS Safari on iPhone 12 Pro with Face ID &amp; iCloud Keychain — no paid Apple Developer account or AASA Team ID required.</p>
+    <label for="username">Account Email</label>
+    <input id="username" type="email" autocomplete="username webauthn" value="maya.lin@icloud.com" />
+    <label for="otp">6-Digit Code (AutoFill Test)</label>
+    <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" />
+    <button class="primary" onclick="registerPasskey()">Create Passkey (Face ID)</button>
+    <button class="dark" onclick="signInPasskey()">Sign In with Passkey</button>
+    <pre id="out">Ready on origin: https://${safeHost}</pre>
+  </div>
+  <script>
+    const out = document.getElementById('out');
+    const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
+    const rand = (n) => crypto.getRandomValues(new Uint8Array(n));
+    async function registerPasskey() {
+      try {
+        const email = document.getElementById('username').value.trim() || 'user@${safeHost}';
+        const cred = await navigator.credentials.create({
+          publicKey: {
+            challenge: rand(32),
+            rp: { name: '${safeHost}', id: location.hostname },
+            user: { id: rand(16), name: email, displayName: email },
+            pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+            authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'required', userVerification: 'required' },
+            timeout: 60000,
+            attestation: 'none'
+          }
+        });
+        out.textContent = JSON.stringify({ status: 'Passkey Created', id: cred.id, rpId: location.hostname }, null, 2);
+      } catch (e) { out.textContent = 'Error: ' + e.message; }
+    }
+    async function signInPasskey() {
+      try {
+        const assertion = await navigator.credentials.get({
+          publicKey: { challenge: rand(32), rpId: location.hostname, userVerification: 'required', timeout: 60000 }
+        });
+        out.textContent = JSON.stringify({ status: 'Passkey Verified', id: assertion.id, clientDataJSON: b64u(assertion.response.clientDataJSON) }, null, 2);
+      } catch (e) { out.textContent = 'Error: ' + e.message; }
+    }
+  </script>
+</body>
+</html>`;
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'index.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="border-b border-slate-200 pb-5">
@@ -316,6 +392,24 @@ export const AasaDomainValidator: React.FC<AasaDomainValidatorProps> = ({
               , or download the file above and host it at{' '}
               <code className="font-mono text-slate-700">https://{cleanDomainLabel}/.well-known/apple-app-site-association</code>.
             </p>
+          </div>
+
+          {/* No Developer Account Workaround */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-5 space-y-3">
+            <h2 className="font-display text-sm font-semibold text-amber-950">
+              No Apple Developer Account Workaround
+            </h2>
+            <p className="text-xs text-amber-900 leading-relaxed">
+              Apple requires a paid Developer Team ID to bind <code className="font-mono">Associated Domains</code> in a native Xcode <code className="font-mono">.ipa</code>, but iOS Safari supports real <strong>Face ID Passkeys &amp; Passwords AutoFill</strong> on <code className="font-mono">https://{cleanDomainLabel}</code> via WebAuthn with <strong>zero Developer account</strong>.
+            </p>
+            <button
+              type="button"
+              onClick={handleDownloadWebPasskeyHtml}
+              className="inline-flex min-h-[38px] w-full items-center justify-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3.5 py-2 text-xs font-semibold text-amber-950 hover:bg-amber-100"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download Hostinger Web Passkey Page (index.html)
+            </button>
           </div>
 
           {/* URL Route Tester */}

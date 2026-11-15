@@ -3,7 +3,7 @@
     {
       "id": "cred-demo-ios",
       "title": "AuthDemo iOS",
-      "domain": "securepasswordmanager.net",
+      "domain": "securepasswordmanager.tech",
       "username": "maya.lin@icloud.com",
       "password": "v7K9-mP3x-qR8w-nB2t",
       "authKind": "passkey",
@@ -17,8 +17,8 @@
       "auditStatus": "strong",
       "auditIssues": [],
       "entropyBits": 256,
-      "lastUsedAt": "2026-11-15T09:15:10.952Z",
-      "updatedAt": "2026-11-15T09:15:10.952Z"
+      "lastUsedAt": "2026-11-15T09:58:07.747Z",
+      "updatedAt": "2026-11-15T09:58:07.747Z"
     },
     {
       "id": "cred-github",
@@ -34,8 +34,8 @@
       "totpSecret": "NB2W45DFOIZA",
       "sharedGroup": "",
       "notes": "Hardware-backed iCloud Keychain synced passkey + TOTP backup.",
-      "lastUsedAt": "2026-11-15T04:15:10.952Z",
-      "updatedAt": "2026-11-12T09:15:10.952Z",
+      "lastUsedAt": "2026-11-15T04:58:07.747Z",
+      "updatedAt": "2026-11-12T09:58:07.747Z",
       "auditStatus": "strong",
       "auditIssues": [],
       "entropyBits": 256
@@ -51,8 +51,8 @@
       "passkeySignCount": 0,
       "isPrivateRelay": true,
       "notes": "Sign in with Apple (Hide My Email relay: 8x9k2p4m@privaterelay.appleid.com)",
-      "lastUsedAt": "2026-11-14T15:15:10.952Z",
-      "updatedAt": "2026-11-03T09:15:10.952Z",
+      "lastUsedAt": "2026-11-14T15:58:07.747Z",
+      "updatedAt": "2026-11-03T09:58:07.747Z",
       "auditStatus": "strong",
       "auditIssues": [],
       "entropyBits": 128
@@ -68,8 +68,8 @@
       "passkeySignCount": 0,
       "totpSecret": "KRSXG5CTMVRXEZLU",
       "notes": "Legacy staging test account flagged for weak/reused password audit.",
-      "lastUsedAt": "2026-11-13T09:15:10.952Z",
-      "updatedAt": "2026-10-16T09:15:10.952Z",
+      "lastUsedAt": "2026-11-13T09:58:07.747Z",
+      "updatedAt": "2026-10-16T09:58:07.747Z",
       "auditStatus": "reused",
       "auditIssues": [
         "Password reused across 2 saved accounts"
@@ -87,8 +87,8 @@
       "passkeySignCount": 0,
       "sharedGroup": "iOS Engineering Team",
       "notes": "Intentionally shares password with Staging Portal to test Security Recommendations.",
-      "lastUsedAt": "2026-11-09T09:15:10.952Z",
-      "updatedAt": "2026-10-01T09:15:10.952Z",
+      "lastUsedAt": "2026-11-09T09:58:07.747Z",
+      "updatedAt": "2026-10-01T09:58:07.747Z",
       "auditStatus": "reused",
       "auditIssues": [
         "Password reused across 2 saved accounts"
@@ -98,11 +98,23 @@
   ],
   "logs": [
     {
-      "id": "log-47bb0bab",
-      "timestamp": "2026-11-15T09:15:12.243Z",
+      "id": "log-06dc125d",
+      "timestamp": "2026-11-15T10:21:12.277Z",
       "framework": "AuthenticationServices",
       "operation": "XCTest.AuthServicesIntegrationSuite.runAll()",
-      "domain": "securepasswordmanager.net",
+      "domain": "securepasswordmanager.tech",
+      "biometricType": "faceId",
+      "statusCode": "XCTestPassed (0)",
+      "success": true,
+      "latencyMs": 4,
+      "detail": "Executed 9 automated assertions: 9/9 passed."
+    },
+    {
+      "id": "log-1f736d7e",
+      "timestamp": "2026-11-15T09:58:15.055Z",
+      "framework": "AuthenticationServices",
+      "operation": "XCTest.AuthServicesIntegrationSuite.runAll()",
+      "domain": "securepasswordmanager.tech",
       "biometricType": "faceId",
       "statusCode": "XCTestPassed (0)",
       "success": true,
@@ -111,10 +123,10 @@
     },
     {
       "id": "log-1",
-      "timestamp": "2026-11-15T09:12:10.953Z",
+      "timestamp": "2026-11-15T09:55:07.747Z",
       "framework": "LocalAuthentication",
       "operation": "LAContext.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)",
-      "domain": "securepasswordmanager.net",
+      "domain": "securepasswordmanager.tech",
       "biometricType": "faceId",
       "statusCode": "errSecSuccess (0)",
       "success": true,
@@ -123,10 +135,10 @@
     },
     {
       "id": "log-2",
-      "timestamp": "2026-11-15T09:13:10.953Z",
+      "timestamp": "2026-11-15T09:56:07.747Z",
       "framework": "AuthenticationServices",
       "operation": "ASAuthorizationController.performRequests([PasskeyAssertion])",
-      "domain": "securepasswordmanager.net",
+      "domain": "securepasswordmanager.tech",
       "biometricType": "faceId",
       "statusCode": "ASAuthorizationError.none",
       "success": true,
@@ -135,7 +147,7 @@
     },
     {
       "id": "log-3",
-      "timestamp": "2026-11-15T09:14:25.953Z",
+      "timestamp": "2026-11-15T09:57:22.747Z",
       "framework": "Passwords.AutoFill",
       "operation": "ASCredentialProviderViewController.provideCredentialWithoutUserInteraction",
       "domain": "github.com",
