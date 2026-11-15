@@ -52,6 +52,8 @@ export const AasaDomainValidator: React.FC = () => {
         const data = (await res.json()) as AasaValidationResult;
         setValidation(data);
       }
+    } catch {
+      // Transient fetch failure handled gracefully
     } finally {
       setIsValidating(false);
     }

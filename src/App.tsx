@@ -178,30 +178,36 @@ export default function App() {
         setTestSuiteResult(data);
         await handleLogAppended();
       }
+    } catch {
+      // Transient fetch failure handled gracefully
     } finally {
       setIsRunningTests(false);
     }
   };
 
   const handleResetVault = async () => {
-    const res = await fetch('/api/credentials/reset', { method: 'POST' });
-    if (res.ok) {
-      const data = (await res.json()) as {
-        credentials: CredentialEntry[];
-        logs: AuthLogEntry[];
-      };
-      setLocalCredentials(data.credentials);
-      setLocalLogs(data.logs);
-      setSelectedCredentialId(null);
+    try {
+      const res = await fetch('/api/credentials/reset', { method: 'POST' });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          credentials: CredentialEntry[];
+          logs: AuthLogEntry[];
+        };
+        setLocalCredentials(data.credentials);
+        setLocalLogs(data.logs);
+        setSelectedCredentialId(null);
 
-      if (user) {
-        for (const c of activeCredentials) {
-          await deleteCredentialFromCloud(c.id);
-        }
-        for (const c of data.credentials) {
-          await saveCredentialToCloud(c, true);
+        if (user) {
+          for (const c of activeCredentials) {
+            await deleteCredentialFromCloud(c.id);
+          }
+          for (const c of data.credentials) {
+            await saveCredentialToCloud(c, true);
+          }
         }
       }
+    } catch {
+      // Transient fetch failure handled gracefully
     }
   };
 
@@ -280,31 +286,42 @@ export default function App() {
   };
 
   const handleSaveEmail = async (email: UniversalEmailMessage, isNew: boolean) => {
-    const endpoint = isNew ? '/api/emails' : `/api/emails/${encodeURIComponent(email.id)}`;
-    const res = await fetch(endpoint, {
-      method: isNew ? 'POST' : 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(email),
-    });
     let saved = email;
-    if (res.ok) {
-      const data = (await res.json()) as { email: UniversalEmailMessage; emails: UniversalEmailMessage[] };
-      setLocalEmails(data.emails);
-      saved = data.email;
+    try {
+      const endpoint = isNew ? '/api/emails' : `/api/emails/${encodeURIComponent(email.id)}`;
+      const res = await fetch(endpoint, {
+        method: isNew ? 'POST' : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(email),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { email: UniversalEmailMessage; emails: UniversalEmailMessage[] };
+        setLocalEmails(data.emails);
+        saved = data.email;
+      }
+    } catch {
+      // Fallback to local state update when offline
+      setLocalEmails((prev) =>
+        isNew ? [email, ...prev] : prev.map((item) => (item.id === email.id ? email : item))
+      );
     }
     if (user) {
-      await saveEmailToCloud(saved, isNew);
+      await saveEmailToCloud(saved, isNew).catch(() => {});
     }
   };
 
   const handleDeleteEmail = async (id: string) => {
-    const res = await fetch(`/api/emails/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    if (res.ok) {
-      const data = (await res.json()) as { emails: UniversalEmailMessage[] };
-      setLocalEmails(data.emails);
+    try {
+      const res = await fetch(`/api/emails/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (res.ok) {
+        const data = (await res.json()) as { emails: UniversalEmailMessage[] };
+        setLocalEmails(data.emails);
+      }
+    } catch {
+      setLocalEmails((prev) => prev.filter((item) => item.id !== id));
     }
     if (user) {
-      await deleteEmailFromCloud(id);
+      await deleteEmailFromCloud(id).catch(() => {});
     }
   };
 
@@ -313,33 +330,41 @@ export default function App() {
     to: string,
     providerHint: EmailProviderId
   ) => {
-    const res = await fetch('/api/emails/simulate-auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind, to, providerHint }),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as { email: UniversalEmailMessage; emails: UniversalEmailMessage[] };
-      setLocalEmails(data.emails);
-      if (user) {
-        await saveEmailToCloud(data.email, true);
+    try {
+      const res = await fetch('/api/emails/simulate-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, to, providerHint }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { email: UniversalEmailMessage; emails: UniversalEmailMessage[] };
+        setLocalEmails(data.emails);
+        if (user) {
+          await saveEmailToCloud(data.email, true).catch(() => {});
+        }
       }
+    } catch {
+      // Transient fetch failure handled gracefully
     }
   };
 
   const handleResetEmails = async () => {
-    const res = await fetch('/api/emails/reset', { method: 'POST' });
-    if (res.ok) {
-      const data = (await res.json()) as { emails: UniversalEmailMessage[] };
-      setLocalEmails(data.emails);
-      if (user) {
-        for (const e of activeEmails) {
-          await deleteEmailFromCloud(e.id);
-        }
-        for (const e of data.emails) {
-          await saveEmailToCloud(e, true);
+    try {
+      const res = await fetch('/api/emails/reset', { method: 'POST' });
+      if (res.ok) {
+        const data = (await res.json()) as { emails: UniversalEmailMessage[] };
+        setLocalEmails(data.emails);
+        if (user) {
+          for (const e of activeEmails) {
+            await deleteEmailFromCloud(e.id);
+          }
+          for (const e of data.emails) {
+            await saveEmailToCloud(e, true);
+          }
         }
       }
+    } catch {
+      // Transient fetch failure handled gracefully
     }
   };
 

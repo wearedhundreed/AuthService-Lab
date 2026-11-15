@@ -111,6 +111,8 @@ export const PasswordsVaultManager: React.FC<PasswordsVaultManagerProps> = ({
       setNewPassword('');
       setNewSharedGroup('');
       setShowAddForm(false);
+    } catch {
+      setFormError('Unable to reach server. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -132,28 +134,38 @@ export const PasswordsVaultManager: React.FC<PasswordsVaultManagerProps> = ({
         setEditingCredential(null);
         setEditPasswordValue('');
       }
+    } catch {
+      // Transient network error handled gracefully
     } finally {
       setIsUpdating(false);
     }
   };
 
   const handleUpgradePasskey = async (cred: CredentialEntry) => {
-    const res = await fetch(`/api/credentials/${cred.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ upgradeToPasskey: true }),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as { credentials: CredentialEntry[] };
-      onVaultUpdated(data.credentials);
+    try {
+      const res = await fetch(`/api/credentials/${cred.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ upgradeToPasskey: true }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { credentials: CredentialEntry[] };
+        onVaultUpdated(data.credentials);
+      }
+    } catch {
+      // Transient network error handled gracefully
     }
   };
 
   const handleDeleteCredential = async (id: string) => {
-    const res = await fetch(`/api/credentials/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      const data = (await res.json()) as { credentials: CredentialEntry[] };
-      onVaultUpdated(data.credentials);
+    try {
+      const res = await fetch(`/api/credentials/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        const data = (await res.json()) as { credentials: CredentialEntry[] };
+        onVaultUpdated(data.credentials);
+      }
+    } catch {
+      // Transient network error handled gracefully
     }
   };
 

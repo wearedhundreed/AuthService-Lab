@@ -46,6 +46,19 @@ export const PasswordGeneratorControl: React.FC<PasswordGeneratorControlProps> =
         setEntropyBits(data.entropyBits);
         setRulesDescriptor(data.rulesDescriptor);
       }
+    } catch {
+      const pool =
+        (opts.uppercase ? 'ABCDEFGHJKLMNPQRSTUVWXYZ' : '') +
+        (opts.lowercase ? 'abcdefghijkmnopqrstuvwxyz' : '') +
+        (opts.numbers ? '23456789' : '') +
+        (opts.symbols ? '!@#$%^&*-_=+?' : '') || 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+      const len = opts.appleFormat ? 19 : Math.max(8, Math.min(64, opts.length));
+      const bytes = new Uint8Array(len);
+      crypto.getRandomValues(bytes);
+      const generated = Array.from(bytes, (b) => pool[b % pool.length]).join('');
+      setGeneratedPassword(generated);
+      setEntropyBits(Math.round(len * Math.log2(pool.length)));
+      setRulesDescriptor(`minlength: ${len}; local-csprng-fallback;`);
     } finally {
       setIsGenerating(false);
     }

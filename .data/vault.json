@@ -98,6 +98,18 @@
   ],
   "logs": [
     {
+      "id": "log-34e68e1c",
+      "timestamp": "2026-11-15T08:54:12.745Z",
+      "framework": "AuthenticationServices",
+      "operation": "XCTest.AuthServicesIntegrationSuite.runAll()",
+      "domain": "auth.demo-ios.app",
+      "biometricType": "faceId",
+      "statusCode": "XCTestPassed (0)",
+      "success": true,
+      "latencyMs": 20,
+      "detail": "Executed 9 automated assertions: 9/9 passed."
+    },
+    {
       "id": "log-a54235fc",
       "timestamp": "2026-11-14T20:44:28.084Z",
       "framework": "AuthenticationServices",

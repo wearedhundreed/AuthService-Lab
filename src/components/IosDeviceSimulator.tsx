@@ -229,16 +229,21 @@ export const IosDeviceSimulator: React.FC<IosDeviceSimulatorProps> = ({
     latencyMs: number;
     detail: string;
   }) => {
-    await fetch('/api/audit/logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, biometricType }),
-    });
-    onLogAppended();
+    try {
+      await fetch('/api/audit/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, biometricType }),
+      });
+      onLogAppended();
+    } catch {
+      // Ignore transient log persistence errors
+    }
   };
 
   const completeSheetSuccess = async () => {
     if (!pendingSheet) return;
+    try {
 
     if (pendingSheet.kind === 'vault-unlock') {
       setVaultUnlocked(true);
@@ -563,6 +568,12 @@ export const IosDeviceSimulator: React.FC<IosDeviceSimulatorProps> = ({
       setSheetPhase('success');
       setTimeout(() => setPendingSheet(null), 700);
     }
+    } catch (err) {
+      setSheetPhase('error');
+      setSheetErrorMsg(
+        err instanceof Error ? `Network request failed (${err.message}).` : 'Authentication request failed.'
+      );
+    }
   };
 
   const triggerBiometricAttempt = () => {
@@ -570,6 +581,7 @@ export const IosDeviceSimulator: React.FC<IosDeviceSimulatorProps> = ({
     setSheetPhase('scanning');
 
     setTimeout(async () => {
+      try {
       if (biometricOutcome === 'userCancel') {
         setSheetPhase('error');
         setSheetErrorMsg('LAError.userCancel (-2): User canceled biometric evaluation.');
@@ -633,6 +645,10 @@ export const IosDeviceSimulator: React.FC<IosDeviceSimulatorProps> = ({
       }
 
       await completeSheetSuccess();
+      } catch {
+        setSheetPhase('error');
+        setSheetErrorMsg('Biometric simulation encountered a network error.');
+      }
     }, 520);
   };
 
@@ -647,19 +663,28 @@ export const IosDeviceSimulator: React.FC<IosDeviceSimulatorProps> = ({
   };
 
   const handleQuickTypeSuggestPassword = async () => {
-    const res = await fetch('/api/passwords/generate?appleFormat=true');
-    if (res.ok) {
-      const data = (await res.json()) as { password: string; rulesDescriptor: string };
-      setLoginPassword(data.password);
-      await recordLog({
-        framework: 'Passwords.AutoFill',
-        operation: 'UITextPasswordRules.suggestStrongPassword()',
-        domain: loginDomain,
-        statusCode: 'errSecSuccess (0)',
-        success: true,
-        latencyMs: 18,
-        detail: `Generated Apple Strong Password for ${loginDomain} (${data.rulesDescriptor}).`,
-      });
+    try {
+      const res = await fetch('/api/passwords/generate?appleFormat=true');
+      if (res.ok) {
+        const data = (await res.json()) as { password: string; rulesDescriptor: string };
+        setLoginPassword(data.password);
+        await recordLog({
+          framework: 'Passwords.AutoFill',
+          operation: 'UITextPasswordRules.suggestStrongPassword()',
+          domain: loginDomain,
+          statusCode: 'errSecSuccess (0)',
+          success: true,
+          latencyMs: 18,
+          detail: `Generated Apple Strong Password for ${loginDomain} (${data.rulesDescriptor}).`,
+        });
+      }
+    } catch {
+      // Offline fallback using Web Crypto
+      const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const rnd = new Uint8Array(16);
+      crypto.getRandomValues(rnd);
+      const out = Array.from(rnd, (b) => chars[b % chars.length]);
+      setLoginPassword(`${out.slice(0, 4).join('')}-${out.slice(4, 8).join('')}-${out.slice(8, 12).join('')}-${out.slice(12, 16).join('')}`);
     }
   };
 
