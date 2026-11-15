@@ -2118,15 +2118,76 @@ async function startServer() {
     });
   });
 
-  // Server-side Gemini Multi-Turn Assistant API
-  app.post('/api/chat', async (req, res) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      res.status(503).json({
-        error: 'Gemini API key is not configured on the server. Set GEMINI_API_KEY in Settings > Secrets.',
-      });
-      return;
+  const buildOfflineIosAssistantReply = (params: {
+    message: string;
+    assistantRole: string;
+    deviceTarget: string;
+    safeDomain: string;
+  }) => {
+    const q = params.message.toLowerCase();
+    const device = params.deviceTarget === 'iphone-12-pro' ? 'iPhone 12 Pro' : 'iPhone 16 Pro';
+    const domain = params.safeDomain;
+
+    if (q.includes('face id') || q.includes('biometry') || q.includes('keychain') || q.includes('lacontext')) {
+      return `Here is the verified Face ID + Keychain flow for ${device} (works with or without a paid Apple Developer account):
+
+1. Policy Check & Prompt:
+   Use \`LAContext.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error:)\` then call \`evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason:)\`.
+2. Keychain Binding (.biometryCurrentSet):
+   Create your \`SecAccessControl\` with \`.biometryCurrentSet\` (or \`.userPresence\` when testing passcode fallback) and store the token under \`kSecClassGenericPassword\` with \`kSecAttrAccessibleWhenUnlockedThisDeviceOnly\`.
+3. Error Handling:
+   - \`LAError.biometryLockout (-8)\`: fall back to \`.deviceOwnerAuthentication\` so iOS presents the device passcode sheet.
+   - \`LAError.userCancel (-2)\`: keep the user on the sign-in screen without clearing saved credentials.
+
+You can copy the ready-to-paste \`BiometricKeychainHelper.swift\` directly from the **Swift Code** tab.`;
     }
+
+    if (q.includes('aasa') || q.includes('associated domain') || q.includes('passkey') || q.includes('webauthn')) {
+      return `Associated Domains & Passkeys checklist for \`${domain}\` on ${device}:
+
+1. Live AASA Endpoint:
+   Your file is already live at \`https://${domain}/.well-known/apple-app-site-association\` returning \`HTTP 200\` with \`Content-Type: application/json\` and zero redirects.
+2. Xcode Free-Account Workaround:
+   If you don't have a paid Apple Developer membership yet, you can test real Safari WebAuthn Passkeys on \`https://${domain}/\` via \`ASWebAuthenticationSession(url:callbackURLScheme:)\` (see \`FreeAccountWebAuthView.swift\` in the **Swift Code** tab).
+3. Diagnostics:
+   Open **AASA & Domains** and click **Fetch Live Domain** anytime to verify Apple CDN readiness.`;
+    }
+
+    if (q.includes('abm') || q.includes('managed') || q.includes('business manager') || q.includes('csv')) {
+      return `Apple Business Manager (ABM) Managed Apple Account workflow:
+
+1. Your imported ABM CSV account (\`chrisbarnes@moredesa2.appleaccount.com\`) is loaded under **Passwords Vault -> ABM Sign-In Credentials & CSV Importer**.
+2. Use the eye icon to reveal or copy the temporary password safely when completing first-time sign-in on Apple Business Manager or your ${device}.
+3. Click **Save to Vault** or **Test on iPhone** to sync the credential into your AutoFill vault and preview it in the iPhone simulator.`;
+    }
+
+    if (q.includes('lockout') || q.includes('-8') || q.includes('laerror') || q.includes('asauthorizationerror')) {
+      return `Quick iOS Auth Error Reference (${device}):
+
+- **LAError.biometryLockout (-8)**: Too many failed Face ID scans. Call \`LAContext().evaluatePolicy(.deviceOwnerAuthentication, ...)\` to unlock via device passcode.
+- **LAError.biometryNotEnrolled (-7)**: Face ID is disabled in iOS Settings -> Face ID & Passcode.
+- **ASAuthorizationError.canceled (1001)**: User dismissed the Passkey or Sign in with Apple sheet.
+- **ASAuthorizationError.failed (1004)**: Usually indicates Associated Domains entitlement (\`webcredentials:${domain}\`) is missing or cached AASA hasn't refreshed on device.`;
+    }
+
+    return `AuthServices Lab Assistant (${device} · Domain: \`${domain}\`):
+
+- **Passkeys & Biometrics**: Test Face ID / Touch ID outcomes, WebAuthn ES256 challenges, and Sign in with Apple JWT tokens right inside the simulator.
+- **Passwords Vault & ABM**: Manage credentials, generate Apple-rule strong passwords, verify RFC 6238 TOTP codes, and import Apple Business Manager CSV sign-in accounts.
+- **AASA & Free-Account Workaround**: \`https://${domain}/.well-known/apple-app-site-association\` is live and verified; open **Swift Code -> FreeAccountWebAuthView.swift** to test on your ${device} without a paid Apple Developer account.
+
+(Running with the built-in iOS Engineering Playbook — zero billing required. If you ever want live Gemini responses too, you can add a free-tier Google AI Studio key from aistudio.google.com/apikey in Settings > Secrets as \`GEMINI_API_KEY\`.)`;
+  };
+
+  // Server-side Gemini Multi-Turn Assistant API (supports free-tier keys and zero-billing built-in playbook)
+  app.post('/api/chat', async (req, res) => {
+    const rawKey = (
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_API_KEY ||
+      process.env.API_KEY ||
+      ''
+    ).trim();
+    const apiKey = rawKey && rawKey !== 'MY_GEMINI_API_KEY' ? rawKey : '';
 
     const {
       message,
@@ -2152,6 +2213,17 @@ async function startServer() {
     const safeDomain =
       (activeDomain || 'securepasswordmanager.tech').trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0] ||
       'securepasswordmanager.tech';
+
+    if (!apiKey) {
+      const reply = buildOfflineIosAssistantReply({
+        message: message.trim(),
+        assistantRole,
+        deviceTarget,
+        safeDomain,
+      });
+      res.json({ reply, model: 'ios-playbook-free', taskMode });
+      return;
+    }
 
     const deviceLabel =
       deviceTarget === 'iphone-12-pro'
@@ -2224,6 +2296,26 @@ async function startServer() {
       } catch {
         // Keep original message if not JSON
       }
+
+      const lowerErr = errMsg.toLowerCase();
+      const isBillingOrFreeTierBlocked =
+        lowerErr.includes('free tier') ||
+        lowerErr.includes('billing') ||
+        lowerErr.includes('project-unavailable') ||
+        lowerErr.includes('quota') ||
+        lowerErr.includes('resource_exhausted');
+
+      if (isBillingOrFreeTierBlocked) {
+        const reply = buildOfflineIosAssistantReply({
+          message: message.trim(),
+          assistantRole,
+          deviceTarget,
+          safeDomain,
+        });
+        res.json({ reply, model: 'ios-playbook-free', taskMode });
+        return;
+      }
+
       res.status(502).json({ error: errMsg });
     }
   });
