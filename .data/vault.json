@@ -98,6 +98,54 @@
   ],
   "logs": [
     {
+      "id": "log-51e24595",
+      "timestamp": "2026-11-15T12:43:26.461Z",
+      "framework": "AuthenticationServices",
+      "operation": "XCTest.AuthServicesIntegrationSuite.runAll()",
+      "domain": "securepasswordmanager.tech",
+      "biometricType": "faceId",
+      "statusCode": "XCTestPassed (0)",
+      "success": true,
+      "latencyMs": 2,
+      "detail": "Executed 10 automated assertions: 10/10 passed."
+    },
+    {
+      "id": "log-a8d7791a",
+      "timestamp": "2026-11-15T12:43:25.836Z",
+      "framework": "AuthenticationServices",
+      "operation": "ASAuthorizationAppleIDProvider.createRequest([.fullName, .email])",
+      "domain": "appleid.apple.com",
+      "biometricType": "faceId",
+      "statusCode": "ASAuthorizationError.none",
+      "success": true,
+      "latencyMs": 412,
+      "detail": "Issued ASAuthorizationAppleIDCredential (Hide My Email relay: 95405f35@privaterelay.appleid.com)."
+    },
+    {
+      "id": "log-45ff1769",
+      "timestamp": "2026-11-15T12:43:25.800Z",
+      "framework": "Security.Keychain",
+      "operation": "ABM.ManagedAppleAccountImport",
+      "domain": "business.apple.com",
+      "biometricType": "faceId",
+      "statusCode": "errSecSuccess (0)",
+      "success": true,
+      "latencyMs": 36,
+      "detail": "Imported 1 Apple Business Manager sign-in account(s) from test.csv."
+    },
+    {
+      "id": "log-ebb9ec0b",
+      "timestamp": "2026-11-15T11:19:43.360Z",
+      "framework": "AuthenticationServices",
+      "operation": "XCTest.AuthServicesIntegrationSuite.runAll()",
+      "domain": "securepasswordmanager.tech",
+      "biometricType": "faceId",
+      "statusCode": "XCTestPassed (0)",
+      "success": true,
+      "latencyMs": 22,
+      "detail": "Executed 10 automated assertions: 10/10 passed."
+    },
+    {
       "id": "log-06dc125d",
       "timestamp": "2026-11-15T10:21:12.277Z",
       "framework": "AuthenticationServices",

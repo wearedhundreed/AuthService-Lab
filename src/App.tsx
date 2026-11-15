@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LogIn, LogOut, Cloud, Globe } from 'lucide-react';
 import {
+  AbmAccountEntry,
+  AbmAccountStatus,
   AssistantRole,
   AuthLogEntry,
   BiometricOutcome,
@@ -37,6 +39,7 @@ export default function App() {
     cloudLogs,
     cloudMessages,
     cloudEmails,
+    cloudAbmAccounts,
     signInWithGoogle,
     signOutUser,
     updateDeviceTarget,
@@ -48,6 +51,8 @@ export default function App() {
     clearCloudChatMessages,
     saveEmailToCloud,
     deleteEmailFromCloud,
+    saveAbmAccountToCloud,
+    deleteAbmAccountFromCloud,
   } = useFirebaseAuth();
 
   const [domainDraft, setDomainDraft] = useState(customDomain);
@@ -62,6 +67,7 @@ export default function App() {
   const [localLogs, setLocalLogs] = useState<AuthLogEntry[]>([]);
   const [localMessages, setLocalMessages] = useState<ChatMessageItem[]>([]);
   const [localEmails, setLocalEmails] = useState<UniversalEmailMessage[]>([]);
+  const [localAbmAccounts, setLocalAbmAccounts] = useState<AbmAccountEntry[]>([]);
 
   // Simulator controls
   const [biometricType, setBiometricType] = useState<BiometricType>('faceId');
@@ -83,13 +89,15 @@ export default function App() {
 
   const seededUsersRef = useRef<Set<string>>(new Set());
   const seededEmailsRef = useRef<Set<string>>(new Set());
+  const seededAbmRef = useRef<Set<string>>(new Set());
 
   const fetchVaultAndLogs = useCallback(async () => {
     try {
-      const [credRes, logRes, emailRes] = await Promise.all([
+      const [credRes, logRes, emailRes, abmRes] = await Promise.all([
         fetch('/api/credentials'),
         fetch('/api/audit/logs'),
         fetch('/api/emails'),
+        fetch('/api/abm/accounts'),
       ]);
       if (credRes.ok) {
         const cData = (await credRes.json()) as { credentials: CredentialEntry[] };
@@ -102,6 +110,10 @@ export default function App() {
       if (emailRes.ok) {
         const eData = (await emailRes.json()) as { emails: UniversalEmailMessage[] };
         setLocalEmails(eData.emails);
+      }
+      if (abmRes.ok) {
+        const aData = (await abmRes.json()) as { accounts: AbmAccountEntry[] };
+        setLocalAbmAccounts(aData.accounts);
       }
     } catch {
       // Transient fetch failure
@@ -134,6 +146,17 @@ export default function App() {
     }
   }, [user, profileReady, cloudEmails, localEmails, saveEmailToCloud]);
 
+  // Seed Firestore ABM accounts once for newly signed-in users if their cloud ABM list is empty
+  useEffect(() => {
+    if (!user || !profileReady || cloudAbmAccounts === null) return;
+    if (cloudAbmAccounts.length === 0 && localAbmAccounts.length > 0 && !seededAbmRef.current.has(user.uid)) {
+      seededAbmRef.current.add(user.uid);
+      void Promise.all(localAbmAccounts.map((a) => saveAbmAccountToCloud(a, true))).catch(() => {
+        // Error already logged by handleFirestoreError
+      });
+    }
+  }, [user, profileReady, cloudAbmAccounts, localAbmAccounts, saveAbmAccountToCloud]);
+
   const activeCredentials =
     user && cloudCredentials && cloudCredentials.length > 0 ? cloudCredentials : localCredentials;
   const activeLogs =
@@ -141,6 +164,8 @@ export default function App() {
   const activeMessages = user ? cloudMessages : localMessages;
   const activeEmails =
     user && cloudEmails && cloudEmails.length > 0 ? cloudEmails : localEmails;
+  const activeAbmAccounts =
+    user && cloudAbmAccounts && cloudAbmAccounts.length > 0 ? cloudAbmAccounts : localAbmAccounts;
 
   const handleVaultUpdated = useCallback(
     async (nextCredentials: CredentialEntry[]) => {
@@ -390,6 +415,148 @@ export default function App() {
     setExternalTrigger({ id: Date.now(), kind, credential });
   };
 
+  const handleImportAbmCsv = async (csvText: string, sourceCsv: string) => {
+    const res = await fetch('/api/abm/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csvText, sourceCsv }),
+    });
+    const data = (await res.json()) as { imported?: AbmAccountEntry[]; accounts?: AbmAccountEntry[]; error?: string };
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to import ABM CSV.');
+    }
+    if (data.accounts) {
+      setLocalAbmAccounts(data.accounts);
+    }
+    if (user && data.imported) {
+      for (const acct of data.imported) {
+        await saveAbmAccountToCloud(acct, false).catch(() => {});
+      }
+    }
+    await handleLogAppended();
+  };
+
+  const handleAddManualAbmAccount = async (payload: {
+    managedAppleAccount: string;
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    temporaryPassword: string;
+  }) => {
+    const res = await fetch('/api/abm/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = (await res.json()) as { imported?: AbmAccountEntry[]; accounts?: AbmAccountEntry[]; error?: string };
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to add Managed Apple Account.');
+    }
+    if (data.accounts) {
+      setLocalAbmAccounts(data.accounts);
+    }
+    if (user && data.imported) {
+      for (const acct of data.imported) {
+        await saveAbmAccountToCloud(acct, false).catch(() => {});
+      }
+    }
+  };
+
+  const handleUpdateAbmStatus = async (account: AbmAccountEntry, status: AbmAccountStatus) => {
+    const res = await fetch(`/api/abm/accounts/${encodeURIComponent(account.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { account: AbmAccountEntry; accounts: AbmAccountEntry[] };
+      setLocalAbmAccounts(data.accounts);
+      if (user) {
+        await saveAbmAccountToCloud(data.account, false).catch(() => {});
+      }
+    }
+  };
+
+  const handleDeleteAbmAccount = async (id: string) => {
+    const res = await fetch(`/api/abm/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.ok) {
+      const data = (await res.json()) as { accounts: AbmAccountEntry[] };
+      setLocalAbmAccounts(data.accounts);
+    }
+    if (user) {
+      await deleteAbmAccountFromCloud(id).catch(() => {});
+    }
+  };
+
+  const handleResetAbmAccounts = async () => {
+    const res = await fetch('/api/abm/reset', { method: 'POST' });
+    if (res.ok) {
+      const data = (await res.json()) as { accounts: AbmAccountEntry[] };
+      setLocalAbmAccounts(data.accounts);
+      if (user) {
+        for (const old of activeAbmAccounts) {
+          await deleteAbmAccountFromCloud(old.id).catch(() => {});
+        }
+        for (const fresh of data.accounts) {
+          await saveAbmAccountToCloud(fresh, true).catch(() => {});
+        }
+      }
+    }
+  };
+
+  const saveAbmIntoVault = async (account: AbmAccountEntry): Promise<CredentialEntry | null> => {
+    const fullName = [account.firstName, account.middleName, account.lastName].filter(Boolean).join(' ');
+    const domain = account.managedAppleAccount.split('@')[1] || 'appleaccount.com';
+    const existing = activeCredentials.find(
+      (c) => c.username.toLowerCase() === account.managedAppleAccount.toLowerCase()
+    );
+    if (existing) {
+      return existing;
+    }
+
+    const res = await fetch('/api/credentials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `ABM Apple ID · ${fullName}`,
+        domain,
+        username: account.managedAppleAccount,
+        password: account.temporaryPassword,
+        authKind: 'password',
+        enableTotp: false,
+        sharedGroup: 'Apple Business Manager',
+        notes: `Imported from ${account.sourceCsv || 'ABM CSV'}. Temporary first-sign-in password.`,
+      }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { credential: CredentialEntry; credentials: CredentialEntry[] };
+      await handleVaultUpdated(data.credentials);
+      await handleUpdateAbmStatus(account, 'synced_to_vault');
+      return data.credential;
+    }
+    return null;
+  };
+
+  const handleTestAbmOnIphone = async (account: AbmAccountEntry) => {
+    const fullName = [account.firstName, account.middleName, account.lastName].filter(Boolean).join(' ');
+    const cred = (await saveAbmIntoVault(account)) ?? {
+      id: account.id,
+      title: `ABM Apple ID · ${fullName}`,
+      domain: account.managedAppleAccount.split('@')[1] || 'appleaccount.com',
+      username: account.managedAppleAccount,
+      password: account.temporaryPassword,
+      authKind: 'password',
+      hasPasskey: false,
+      passkeySignCount: 0,
+      auditStatus: 'strong',
+      auditIssues: [],
+      entropyBits: 52,
+      lastUsedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    triggerSimulatorFlow('autofill', cred);
+  };
+
   return (
     <div id="top" className="min-h-screen bg-slate-50 text-slate-900">
       <TopBar
@@ -533,6 +700,16 @@ export default function App() {
             onTestAutoFill={(cred) => triggerSimulatorFlow('autofill', cred)}
             onInspectInIos={(cred) => triggerSimulatorFlow('vault-unlock', cred)}
             onResetVault={handleResetVault}
+            abmAccounts={activeAbmAccounts}
+            onImportAbmCsv={handleImportAbmCsv}
+            onAddManualAbmAccount={handleAddManualAbmAccount}
+            onUpdateAbmStatus={handleUpdateAbmStatus}
+            onDeleteAbmAccount={handleDeleteAbmAccount}
+            onResetAbmAccounts={handleResetAbmAccounts}
+            onSaveAbmToVault={async (acct) => {
+              await saveAbmIntoVault(acct);
+            }}
+            onTestAbmOnIphone={(acct) => void handleTestAbmOnIphone(acct)}
           />
         )}
 

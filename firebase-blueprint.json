@@ -342,6 +342,77 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "AbmManagedAccount": {
+      "title": "AbmManagedAccount",
+      "description": "Apple Business Manager (ABM) Managed Apple Account imported from CSV for first-time sign-in testing.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "managedAppleAccount": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "firstName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "middleName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "lastName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "temporaryPassword": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "sourceCsv": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending_first_signin", "active", "synced_to_vault"],
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "managedAppleAccount",
+        "firstName",
+        "lastName",
+        "temporaryPassword",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -364,6 +435,10 @@
     "/users/{userId}/emails/{emailId}": {
       "schema": { "$ref": "#/entities/UniversalEmail" },
       "description": "User's universal email messages, drafts, and authentication email tests."
+    },
+    "/users/{userId}/abmAccounts/{accountId}": {
+      "schema": { "$ref": "#/entities/AbmManagedAccount" },
+      "description": "User's imported Apple Business Manager Managed Apple Accounts and temporary sign-in credentials."
     }
   }
 }

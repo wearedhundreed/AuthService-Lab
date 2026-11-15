@@ -20,6 +20,7 @@ import {
   OperationType,
 } from '../lib/firebase';
 import {
+  AbmAccountEntry,
   AuthLogEntry,
   ChatMessageItem,
   CredentialEntry,
@@ -38,6 +39,7 @@ interface FirebaseContextValue {
   cloudLogs: AuthLogEntry[] | null;
   cloudMessages: ChatMessageItem[];
   cloudEmails: UniversalEmailMessage[] | null;
+  cloudAbmAccounts: AbmAccountEntry[] | null;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
   updateDeviceTarget: (target: DeviceTarget) => Promise<void>;
@@ -49,6 +51,8 @@ interface FirebaseContextValue {
   clearCloudChatMessages: () => Promise<void>;
   saveEmailToCloud: (email: UniversalEmailMessage, isNew?: boolean) => Promise<void>;
   deleteEmailFromCloud: (id: string) => Promise<void>;
+  saveAbmAccountToCloud: (account: AbmAccountEntry, isNew?: boolean) => Promise<void>;
+  deleteAbmAccountFromCloud: (id: string) => Promise<void>;
 }
 
 export const DEFAULT_CUSTOM_DOMAIN = 'securepasswordmanager.tech';
@@ -98,6 +102,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [cloudLogs, setCloudLogs] = useState<AuthLogEntry[] | null>(null);
   const [cloudMessages, setCloudMessages] = useState<ChatMessageItem[]>([]);
   const [cloudEmails, setCloudEmails] = useState<UniversalEmailMessage[] | null>(null);
+  const [cloudAbmAccounts, setCloudAbmAccounts] = useState<AbmAccountEntry[] | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
@@ -155,6 +160,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setCloudLogs(null);
         setCloudMessages([]);
         setCloudEmails(null);
+        setCloudAbmAccounts(null);
       }
     });
 
@@ -328,11 +334,49 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     );
 
+    const abmPath = `users/${uid}/abmAccounts`;
+    const abmQuery = query(
+      collection(db, 'users', uid, 'abmAccounts'),
+      where('userId', '==', uid)
+    );
+
+    const unsubAbm = onSnapshot(
+      abmQuery,
+      (snapshot) => {
+        const mapped = snapshot.docs.map((d) => {
+          const data = d.data() as Record<string, unknown>;
+          const createdTs = data.createdAt as { toMillis?: () => number; toDate?: () => Date } | undefined;
+          const updatedTs = data.updatedAt as { toMillis?: () => number; toDate?: () => Date } | undefined;
+          return {
+            sortMs: updatedTs?.toMillis ? updatedTs.toMillis() : 0,
+            entry: {
+              id: String(data.id || d.id),
+              managedAppleAccount: String(data.managedAppleAccount || ''),
+              firstName: String(data.firstName || ''),
+              middleName: data.middleName ? String(data.middleName) : '',
+              lastName: String(data.lastName || ''),
+              temporaryPassword: String(data.temporaryPassword || ''),
+              sourceCsv: data.sourceCsv ? String(data.sourceCsv) : '',
+              status: (data.status as AbmAccountEntry['status']) || 'pending_first_signin',
+              createdAt: createdTs?.toDate ? createdTs.toDate().toISOString() : new Date().toISOString(),
+              updatedAt: updatedTs?.toDate ? updatedTs.toDate().toISOString() : new Date().toISOString(),
+            } satisfies AbmAccountEntry,
+          };
+        });
+        mapped.sort((a, b) => b.sortMs - a.sortMs);
+        setCloudAbmAccounts(mapped.map((m) => m.entry));
+      },
+      (err) => {
+        handleFirestoreError(err, OperationType.LIST, abmPath);
+      }
+    );
+
     return () => {
       unsubCreds();
       unsubLogs();
       unsubChat();
       unsubEmails();
+      unsubAbm();
     };
   }, [authReady, profileReady, user]);
 
@@ -590,6 +634,70 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [user]
   );
 
+  const saveAbmAccountToCloud = useCallback(
+    async (account: AbmAccountEntry, isNew = false) => {
+      if (!user) return;
+      const safeId = sanitizeId(account.id);
+      const docPath = `users/${user.uid}/abmAccounts/${safeId}`;
+      const appleAccount = (account.managedAppleAccount || '').trim().slice(0, 254);
+      const first = (account.firstName || 'User').trim().slice(0, 120) || 'User';
+      const last = (account.lastName || 'Account').trim().slice(0, 120) || 'Account';
+      const tempPwd = (account.temporaryPassword || 'TempPass1').slice(0, 128) || 'TempPass1';
+
+      const payload: Record<string, unknown> = {
+        id: safeId,
+        userId: user.uid,
+        managedAppleAccount: appleAccount.length >= 3 ? appleAccount : 'user@appleaccount.com',
+        firstName: first,
+        lastName: last,
+        temporaryPassword: tempPwd,
+        status: account.status || 'pending_first_signin',
+        updatedAt: serverTimestamp(),
+      };
+      if (account.middleName) payload.middleName = account.middleName.slice(0, 120);
+      if (account.sourceCsv) payload.sourceCsv = account.sourceCsv.slice(0, 255);
+
+      try {
+        if (isNew) {
+          await setDoc(doc(db, 'users', user.uid, 'abmAccounts', safeId), {
+            ...payload,
+            createdAt: serverTimestamp(),
+          });
+        } else {
+          const existingSnap = await getDoc(doc(db, 'users', user.uid, 'abmAccounts', safeId));
+          if (!existingSnap.exists()) {
+            await setDoc(doc(db, 'users', user.uid, 'abmAccounts', safeId), {
+              ...payload,
+              createdAt: serverTimestamp(),
+            });
+          } else {
+            const updatePayload = { ...payload };
+            delete updatePayload.id;
+            delete updatePayload.userId;
+            await updateDoc(doc(db, 'users', user.uid, 'abmAccounts', safeId), updatePayload);
+          }
+        }
+      } catch (err) {
+        handleFirestoreError(err, isNew ? OperationType.CREATE : OperationType.UPDATE, docPath);
+      }
+    },
+    [user]
+  );
+
+  const deleteAbmAccountFromCloud = useCallback(
+    async (id: string) => {
+      if (!user) return;
+      const safeId = sanitizeId(id);
+      const docPath = `users/${user.uid}/abmAccounts/${safeId}`;
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'abmAccounts', safeId));
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, docPath);
+      }
+    },
+    [user]
+  );
+
   return (
     <FirebaseContext.Provider
       value={{
@@ -603,6 +711,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         cloudLogs,
         cloudMessages,
         cloudEmails,
+        cloudAbmAccounts,
         signInWithGoogle,
         signOutUser,
         updateDeviceTarget,
@@ -614,6 +723,8 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         clearCloudChatMessages,
         saveEmailToCloud,
         deleteEmailFromCloud,
+        saveAbmAccountToCloud,
+        deleteAbmAccountFromCloud,
       }}
     >
       {children}

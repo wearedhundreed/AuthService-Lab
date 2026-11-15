@@ -164,3 +164,19 @@ export interface UniversalEmailMessage {
   createdAt: string;
   updatedAt: string;
 }
+
+export type AbmAccountStatus = 'pending_first_signin' | 'active' | 'synced_to_vault';
+
+export interface AbmAccountEntry {
+  id: string;
+  managedAppleAccount: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  temporaryPassword: string;
+  sourceCsv: string;
+  status: AbmAccountStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+

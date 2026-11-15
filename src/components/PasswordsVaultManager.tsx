@@ -12,8 +12,9 @@ import {
   ShieldPlus,
   X,
 } from 'lucide-react';
-import { AuthKind, CredentialEntry } from '../types/auth';
+import { AbmAccountEntry, AbmAccountStatus, AuthKind, CredentialEntry } from '../types/auth';
 import { PasswordGeneratorControl } from './PasswordGeneratorControl';
+import { AbmSignInsPanel } from './AbmSignInsPanel';
 
 interface PasswordsVaultManagerProps {
   credentials: CredentialEntry[];
@@ -21,6 +22,20 @@ interface PasswordsVaultManagerProps {
   onTestAutoFill: (credential: CredentialEntry) => void;
   onInspectInIos: (credential: CredentialEntry) => void;
   onResetVault: () => Promise<void>;
+  abmAccounts: AbmAccountEntry[];
+  onImportAbmCsv: (csvText: string, sourceCsv: string) => Promise<void>;
+  onAddManualAbmAccount: (payload: {
+    managedAppleAccount: string;
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    temporaryPassword: string;
+  }) => Promise<void>;
+  onUpdateAbmStatus: (account: AbmAccountEntry, status: AbmAccountStatus) => Promise<void>;
+  onDeleteAbmAccount: (id: string) => Promise<void>;
+  onResetAbmAccounts: () => Promise<void>;
+  onSaveAbmToVault: (account: AbmAccountEntry) => Promise<void>;
+  onTestAbmOnIphone: (account: AbmAccountEntry) => void;
 }
 
 export const PasswordsVaultManager: React.FC<PasswordsVaultManagerProps> = ({
@@ -29,6 +44,14 @@ export const PasswordsVaultManager: React.FC<PasswordsVaultManagerProps> = ({
   onTestAutoFill,
   onInspectInIos,
   onResetVault,
+  abmAccounts,
+  onImportAbmCsv,
+  onAddManualAbmAccount,
+  onUpdateAbmStatus,
+  onDeleteAbmAccount,
+  onResetAbmAccounts,
+  onSaveAbmToVault,
+  onTestAbmOnIphone,
 }) => {
   const [filter, setFilter] = useState<'all' | 'passkeys' | 'totp' | 'alerts' | 'shared'>('all');
   const [search, setSearch] = useState('');
@@ -673,6 +696,18 @@ export const PasswordsVaultManager: React.FC<PasswordsVaultManagerProps> = ({
           </form>
         </div>
       )}
+
+      {/* Apple Business Manager (ABM) Sign-Ins Section */}
+      <AbmSignInsPanel
+        accounts={abmAccounts}
+        onImportCsv={onImportAbmCsv}
+        onAddManualAccount={onAddManualAbmAccount}
+        onUpdateStatus={onUpdateAbmStatus}
+        onDeleteAccount={onDeleteAbmAccount}
+        onResetAccounts={onResetAbmAccounts}
+        onSaveToVault={onSaveAbmToVault}
+        onTestOnIphone={onTestAbmOnIphone}
+      />
     </div>
   );
 };

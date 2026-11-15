@@ -230,6 +230,46 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function isValidAbmManagedAccount(data, userId, accountId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'managedAppleAccount',
+          'firstName',
+          'lastName',
+          'temporaryPassword',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'userId',
+          'managedAppleAccount',
+          'firstName',
+          'middleName',
+          'lastName',
+          'temporaryPassword',
+          'sourceCsv',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == accountId
+        && isValidId(data.userId)
+        && data.userId == userId
+        && data.managedAppleAccount is string && data.managedAppleAccount.size() >= 3 && data.managedAppleAccount.size() <= 254
+        && data.firstName is string && data.firstName.size() >= 1 && data.firstName.size() <= 120
+        && (!('middleName' in data) || (data.middleName is string && data.middleName.size() <= 120))
+        && data.lastName is string && data.lastName.size() >= 1 && data.lastName.size() <= 120
+        && data.temporaryPassword is string && data.temporaryPassword.size() >= 1 && data.temporaryPassword.size() <= 128
+        && (!('sourceCsv' in data) || (data.sourceCsv is string && data.sourceCsv.size() <= 255))
+        && data.status is string && data.status in ['pending_first_signin', 'active', 'synced_to_vault']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     match /users/{userId} {
       allow get: if isValidId(userId) && isOwner(userId);
       allow list: if false;
@@ -343,6 +383,37 @@ service cloud.firestore {
             'updatedAt'
           ]);
         allow delete: if isValidId(userId) && isValidId(emailId) && isOwner(userId);
+      }
+
+      match /abmAccounts/{accountId} {
+        allow get: if isValidId(userId) && isValidId(accountId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(accountId)
+          && isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && isValidAbmManagedAccount(incoming(), userId, accountId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId)
+          && isValidId(accountId)
+          && isOwner(userId)
+          && isValidAbmManagedAccount(incoming(), userId, accountId)
+          && incoming().id == existing().id
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'managedAppleAccount',
+            'firstName',
+            'middleName',
+            'lastName',
+            'temporaryPassword',
+            'sourceCsv',
+            'status',
+            'updatedAt'
+          ]);
+        allow delete: if isValidId(userId) && isValidId(accountId) && isOwner(userId);
       }
     }
   }
