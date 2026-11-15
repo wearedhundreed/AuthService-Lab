@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw, Copy, Check, ArrowDownRight, ShieldCheck, KeyRound } from 'lucide-react';
 import { BiometricType, WirePayloadSnapshot } from '../types/auth';
 import {
@@ -7,23 +7,25 @@ import {
 } from '../lib/passkeyPayload';
 
 interface PasskeyRegistrationVisualizerProps {
+  activeDomain: string;
   biometricType: BiometricType;
   onCapturePayload: (snapshot: WirePayloadSnapshot) => void;
 }
 
 export const PasskeyRegistrationVisualizer: React.FC<PasskeyRegistrationVisualizerProps> = ({
+  activeDomain,
   biometricType,
   onCapturePayload,
 }) => {
-  const [rpId, setRpId] = useState('auth.demo-ios.app');
-  const [origin, setOrigin] = useState('https://auth.demo-ios.app');
+  const [rpId, setRpId] = useState(activeDomain);
+  const [origin, setOrigin] = useState(`https://${activeDomain}`);
   const [username, setUsername] = useState('maya.lin@icloud.com');
   const [displayName, setDisplayName] = useState('Maya Lin');
   const [challengeOverride, setChallengeOverride] = useState('');
   const [payload, setPayload] = useState<MockPasskeyRegistrationPayload>(() =>
     generateMockPasskeyRegistrationPayload({
-      rpId: 'auth.demo-ios.app',
-      origin: 'https://auth.demo-ios.app',
+      rpId: activeDomain,
+      origin: `https://${activeDomain}`,
       username: 'maya.lin@icloud.com',
       displayName: 'Maya Lin',
       biometricType,
@@ -31,10 +33,26 @@ export const PasskeyRegistrationVisualizer: React.FC<PasskeyRegistrationVisualiz
   );
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
+  useEffect(() => {
+    const clean = activeDomain.trim() || 'securepasswordmanager.net';
+    setRpId(clean);
+    setOrigin(`https://${clean}`);
+    setPayload(
+      generateMockPasskeyRegistrationPayload({
+        rpId: clean,
+        origin: `https://${clean}`,
+        username,
+        displayName,
+        biometricType,
+        challengeOverride,
+      })
+    );
+  }, [activeDomain]);
+
   const handleGenerate = () => {
     const next = generateMockPasskeyRegistrationPayload({
       rpId,
-      origin: origin.trim() || `https://${rpId.trim() || 'auth.demo-ios.app'}`,
+      origin: origin.trim() || `https://${rpId.trim() || activeDomain}`,
       username,
       displayName,
       biometricType,
@@ -88,7 +106,7 @@ export const PasskeyRegistrationVisualizer: React.FC<PasskeyRegistrationVisualiz
             onChange={(e) => {
               const nextRp = e.target.value;
               setRpId(nextRp);
-              setOrigin(`https://${nextRp.trim().replace(/^https?:\/\//, '').split('/')[0] || 'auth.demo-ios.app'}`);
+              setOrigin(`https://${nextRp.trim().replace(/^https?:\/\//, '').split('/')[0] || 'securepasswordmanager.net'}`);
             }}
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs text-slate-900 focus:border-sky-500 focus:outline-none"
           />

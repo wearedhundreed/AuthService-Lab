@@ -127,11 +127,11 @@ function deterministicRpHashBase64Url(rpId: string): string {
 export function generateMockPasskeyRegistrationPayload(
   options: MockPasskeyRegistrationOptions = {}
 ): MockPasskeyRegistrationPayload {
-  const rpId = (options.rpId || 'auth.demo-ios.app')
+  const rpId = (options.rpId || 'securepasswordmanager.net')
     .trim()
     .toLowerCase()
     .replace(/^https?:\/\//, '')
-    .split('/')[0] || 'auth.demo-ios.app';
+    .split('/')[0] || 'securepasswordmanager.net';
   const rpName = (options.rpName || 'AuthServices Lab iOS RP').trim();
   const origin = (options.origin || `https://${rpId}`).trim();
   const username = (options.username || 'maya.lin@icloud.com').trim();

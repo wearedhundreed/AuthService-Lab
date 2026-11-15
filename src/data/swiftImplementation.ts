@@ -19,7 +19,7 @@ final class AuthenticationManager: NSObject, ObservableObject {
 
     private let relyingPartyID: String
 
-    init(relyingPartyID: String = "auth.demo-ios.app") {
+    init(relyingPartyID: String = "securepasswordmanager.net") {
         self.relyingPartyID = relyingPartyID
         super.init()
     }
@@ -460,8 +460,8 @@ struct PasswordsSettingsView: View {
 <dict>
     <key>com.apple.developer.associated-domains</key>
     <array>
-        <string>webcredentials:auth.demo-ios.app</string>
-        <string>applinks:auth.demo-ios.app</string>
+        <string>webcredentials:securepasswordmanager.net</string>
+        <string>applinks:securepasswordmanager.net</string>
     </array>
     <key>com.apple.developer.applesignin</key>
     <array>
@@ -474,7 +474,7 @@ struct PasswordsSettingsView: View {
 <key>NSFaceIDUsageDescription</key>
 <string>Authenticate with Face ID to unlock Passkeys and saved passwords.</string>
 
-<!-- 3. https://auth.demo-ios.app/.well-known/apple-app-site-association -->
+<!-- 3. https://securepasswordmanager.net/.well-known/apple-app-site-association -->
 {
   "applinks": {
     "details": [

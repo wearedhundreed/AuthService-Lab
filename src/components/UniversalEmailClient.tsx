@@ -21,6 +21,7 @@ import {
 import { EmailFolder, EmailProviderId, UniversalEmailMessage } from '../types/auth';
 
 interface UniversalEmailClientProps {
+  activeDomain: string;
   emails: UniversalEmailMessage[];
   defaultUserEmail?: string | null;
   isSignedIn: boolean;
@@ -140,6 +141,7 @@ function downloadEmlFile(email: {
 }
 
 export const UniversalEmailClient: React.FC<UniversalEmailClientProps> = ({
+  activeDomain,
   emails,
   defaultUserEmail,
   isSignedIn,
@@ -148,6 +150,7 @@ export const UniversalEmailClient: React.FC<UniversalEmailClientProps> = ({
   onSimulateAuthEmail,
   onResetEmails,
 }) => {
+  const defaultSender = defaultUserEmail || `developer@${activeDomain}`;
   const [activeFolder, setActiveFolder] = useState<EmailFolder>('inbox');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -156,13 +159,19 @@ export const UniversalEmailClient: React.FC<UniversalEmailClientProps> = ({
 
   // Composer state
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
-  const [fromAddr, setFromAddr] = useState(defaultUserEmail || 'developer@auth.demo-ios.app');
+  const [fromAddr, setFromAddr] = useState(defaultSender);
   const [toAddr, setToAddr] = useState(defaultUserEmail || 'maya.lin@icloud.com');
   const [replyToAddr, setReplyToAddr] = useState('');
   const [subject, setSubject] = useState('');
   const [bodyText, setBodyText] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [statusNotice, setStatusNotice] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    setFromAddr((prev) =>
+      !prev || prev.startsWith('developer@') ? defaultUserEmail || `developer@${activeDomain}` : prev
+    );
+  }, [activeDomain, defaultUserEmail]);
 
   const folderCounts = useMemo(() => {
     const counts: Record<EmailFolder, number> = { inbox: 0, sent: 0, drafts: 0, relay: 0 };
@@ -204,25 +213,25 @@ export const UniversalEmailClient: React.FC<UniversalEmailClientProps> = ({
   const handleStartCompose = (template?: 'blank' | 'otp' | 'magic-link' | 'passkey-invite') => {
     setIsComposing(true);
     setEditingDraftId(null);
-    setFromAddr(defaultUserEmail || 'developer@auth.demo-ios.app');
+    setFromAddr(defaultSender);
     setToAddr(defaultUserEmail || 'maya.lin@icloud.com');
     setReplyToAddr('');
 
     if (template === 'otp') {
       const code = String(Math.floor(100000 + Math.random() * 900000));
-      setSubject(`Your verification code is ${code}`);
+      setSubject(`Your ${activeDomain} verification code is ${code}`);
       setBodyText(
-        `Enter this 6-digit code in iOS Passwords / AutoFill (UITextContentType.oneTimeCode):\n\n${code}\n\nWorks across Apple Mail, Gmail, Outlook, Proton, and Fastmail.`
+        `Enter this 6-digit code in iOS Passwords / AutoFill (UITextContentType.oneTimeCode) for ${activeDomain}:\n\n${code}\n\nWorks across Apple Mail, Gmail, Outlook, Proton, and Fastmail.`
       );
     } else if (template === 'magic-link') {
-      setSubject('Sign in to AuthDemo iOS via Universal Link');
+      setSubject(`Sign in to ${activeDomain} via Universal Link`);
       setBodyText(
-        'Tap this Universal Link on your iPhone 12 Pro to authenticate and register a Passkey:\n\nhttps://auth.demo-ios.app/auth/callback?token=ml_universal_demo\n'
+        `Tap this Universal Link on your iPhone 12 Pro to authenticate and register a Passkey:\n\nhttps://${activeDomain}/auth/callback?token=ml_universal_demo\n`
       );
     } else if (template === 'passkey-invite') {
-      setSubject('Enroll your iPhone 12 Pro Passkey');
+      setSubject(`Enroll your iPhone 12 Pro Passkey for ${activeDomain}`);
       setBodyText(
-        'Upgrade your account to passwordless sign-in with Face ID and iCloud Keychain Passkeys:\n\nhttps://auth.demo-ios.app/passkeys/enroll\n'
+        `Upgrade your account on ${activeDomain} to passwordless sign-in with Face ID and iCloud Keychain Passkeys:\n\nhttps://${activeDomain}/passkeys/enroll\n`
       );
     } else {
       setSubject('');
@@ -233,7 +242,7 @@ export const UniversalEmailClient: React.FC<UniversalEmailClientProps> = ({
   const handleReplyOrForward = (mode: 'reply' | 'forward', source: UniversalEmailMessage) => {
     setIsComposing(true);
     setEditingDraftId(null);
-    setFromAddr(defaultUserEmail || 'developer@auth.demo-ios.app');
+    setFromAddr(defaultSender);
     if (mode === 'reply') {
       setToAddr(source.replyTo || source.from);
       setSubject(source.subject.startsWith('Re:') ? source.subject : `Re: ${source.subject}`);
@@ -261,7 +270,7 @@ export const UniversalEmailClient: React.FC<UniversalEmailClientProps> = ({
     const record: UniversalEmailMessage = {
       id: editingDraftId || `mail-${Date.now()}`,
       folder: targetFolder,
-      from: fromAddr.trim() || 'developer@auth.demo-ios.app',
+      from: fromAddr.trim() || `developer@${activeDomain}`,
       to: cleanTo,
       replyTo: replyToAddr.trim() || undefined,
       subject: cleanSubj,
@@ -657,7 +666,7 @@ export const UniversalEmailClient: React.FC<UniversalEmailClientProps> = ({
                     type="button"
                     onClick={() =>
                       downloadEmlFile({
-                        from: fromAddr || 'developer@auth.demo-ios.app',
+                        from: fromAddr || `developer@${activeDomain}`,
                         to: toAddr || 'user@example.com',
                         replyTo: replyToAddr || undefined,
                         subject: subject || '(No Subject)',

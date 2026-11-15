@@ -40,6 +40,7 @@ interface PendingSheet {
 }
 
 interface IosDeviceSimulatorProps {
+  activeDomain: string;
   credentials: CredentialEntry[];
   deviceTarget: DeviceTarget;
   onChangeDeviceTarget: (target: DeviceTarget) => void;
@@ -83,6 +84,7 @@ function arrayBufferToBase64Url(buf: ArrayBuffer): string {
 const AVATAR_URL = appleAccountAvatar;
 
 export const IosDeviceSimulator: React.FC<IosDeviceSimulatorProps> = ({
+  activeDomain,
   credentials,
   deviceTarget,
   onChangeDeviceTarget,
@@ -99,10 +101,14 @@ export const IosDeviceSimulator: React.FC<IosDeviceSimulatorProps> = ({
   externalTrigger,
 }) => {
   // App Sign-In state
-  const [loginDomain, setLoginDomain] = useState('auth.demo-ios.app');
+  const [loginDomain, setLoginDomain] = useState(activeDomain);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginOtp, setLoginOtp] = useState('');
+
+  useEffect(() => {
+    setLoginDomain(activeDomain);
+  }, [activeDomain]);
   const [focusedField, setFocusedField] = useState<'username' | 'password' | 'otp' | null>(null);
   const [signedInBanner, setSignedInBanner] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
@@ -894,12 +900,17 @@ export const IosDeviceSimulator: React.FC<IosDeviceSimulatorProps> = ({
                       aria-label="Test Associated Domain"
                       value={loginDomain}
                       onChange={(e) => setLoginDomain(e.target.value)}
-                      className="mt-0.5 bg-transparent font-display text-base font-bold text-slate-900 focus:outline-none"
+                      className="mt-0.5 bg-transparent font-display text-base font-bold text-slate-900 focus:outline-none max-w-[230px] truncate"
                     >
-                      <option value="auth.demo-ios.app">auth.demo-ios.app</option>
-                      <option value="github.com">github.com</option>
-                      <option value="staging.internal.example">staging.internal.example</option>
-                      <option value="figma.com">figma.com</option>
+                      <option value={activeDomain}>{activeDomain}</option>
+                      {activeDomain !== 'securepasswordmanager.net' && (
+                        <option value="securepasswordmanager.net">securepasswordmanager.net</option>
+                      )}
+                      {activeDomain !== 'github.com' && <option value="github.com">github.com</option>}
+                      {activeDomain !== 'staging.internal.example' && (
+                        <option value="staging.internal.example">staging.internal.example</option>
+                      )}
+                      {activeDomain !== 'figma.com' && <option value="figma.com">figma.com</option>}
                     </select>
                   </div>
                   <button

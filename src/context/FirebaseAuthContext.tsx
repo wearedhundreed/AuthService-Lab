@@ -33,6 +33,7 @@ interface FirebaseContextValue {
   profileReady: boolean;
   authError: string | null;
   deviceTarget: DeviceTarget;
+  customDomain: string;
   cloudCredentials: CredentialEntry[] | null;
   cloudLogs: AuthLogEntry[] | null;
   cloudMessages: ChatMessageItem[];
@@ -40,6 +41,7 @@ interface FirebaseContextValue {
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
   updateDeviceTarget: (target: DeviceTarget) => Promise<void>;
+  updateCustomDomain: (domain: string) => Promise<void>;
   saveCredentialToCloud: (cred: CredentialEntry, isNew?: boolean) => Promise<void>;
   deleteCredentialFromCloud: (id: string) => Promise<void>;
   saveLogToCloud: (log: AuthLogEntry) => Promise<void>;
@@ -47,6 +49,28 @@ interface FirebaseContextValue {
   clearCloudChatMessages: () => Promise<void>;
   saveEmailToCloud: (email: UniversalEmailMessage, isNew?: boolean) => Promise<void>;
   deleteEmailFromCloud: (id: string) => Promise<void>;
+}
+
+export const DEFAULT_CUSTOM_DOMAIN = 'securepasswordmanager.net';
+const CUSTOM_DOMAIN_STORAGE_KEY = 'authservices_custom_domain';
+
+export function normalizeDomain(raw: string): string {
+  const cleaned = raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    .split('?')[0]
+    .split('#')[0]
+    .split(':')[0]
+    .replace(/\.+$/, '');
+  if (cleaned === 'auth.demo-ios.app') {
+    return DEFAULT_CUSTOM_DOMAIN;
+  }
+  if (cleaned.length >= 3 && cleaned.length <= 253 && !/\s/.test(cleaned) && cleaned.includes('.')) {
+    return cleaned;
+  }
+  return DEFAULT_CUSTOM_DOMAIN;
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
@@ -62,6 +86,14 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [profileReady, setProfileReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [deviceTarget, setDeviceTarget] = useState<DeviceTarget>('iphone-12-pro');
+  const [customDomain, setCustomDomain] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem(CUSTOM_DOMAIN_STORAGE_KEY);
+      return stored ? normalizeDomain(stored) : DEFAULT_CUSTOM_DOMAIN;
+    } catch {
+      return DEFAULT_CUSTOM_DOMAIN;
+    }
+  });
   const [cloudCredentials, setCloudCredentials] = useState<CredentialEntry[] | null>(null);
   const [cloudLogs, setCloudLogs] = useState<AuthLogEntry[] | null>(null);
   const [cloudMessages, setCloudMessages] = useState<ChatMessageItem[]>([]);
@@ -77,18 +109,35 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
           const ref = doc(db, 'users', nextUser.uid);
           const snap = await getDoc(ref);
           if (!snap.exists()) {
+            let initialDomain = DEFAULT_CUSTOM_DOMAIN;
+            try {
+              const stored = localStorage.getItem(CUSTOM_DOMAIN_STORAGE_KEY);
+              if (stored) initialDomain = normalizeDomain(stored);
+            } catch {
+              // Ignore storage read failure
+            }
             await setDoc(ref, {
               uid: nextUser.uid,
               email: (nextUser.email || 'user@example.com').slice(0, 254),
               displayName: (nextUser.displayName || 'iOS Developer').slice(0, 120),
               deviceTarget: 'iphone-12-pro',
+              customDomain: initialDomain,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             });
           } else {
-            const data = snap.data() as { deviceTarget?: DeviceTarget };
+            const data = snap.data() as { deviceTarget?: DeviceTarget; customDomain?: string };
             if (data.deviceTarget === 'iphone-12-pro' || data.deviceTarget === 'iphone-16-pro') {
               setDeviceTarget(data.deviceTarget);
+            }
+            if (typeof data.customDomain === 'string' && data.customDomain.length >= 3 && data.customDomain.length <= 253) {
+              const normalized = normalizeDomain(data.customDomain);
+              setCustomDomain(normalized);
+              try {
+                localStorage.setItem(CUSTOM_DOMAIN_STORAGE_KEY, normalized);
+              } catch {
+                // Ignore storage write failure
+              }
             }
           }
           setProfileReady(true);
@@ -318,6 +367,29 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [user]
   );
 
+  const updateCustomDomain = useCallback(
+    async (domain: string) => {
+      const clean = normalizeDomain(domain);
+      setCustomDomain(clean);
+      try {
+        localStorage.setItem(CUSTOM_DOMAIN_STORAGE_KEY, clean);
+      } catch {
+        // Ignore storage failure
+      }
+      if (!user || !profileReady) return;
+      const path = `users/${user.uid}`;
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          customDomain: clean,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, path);
+      }
+    },
+    [user, profileReady]
+  );
+
   const saveCredentialToCloud = useCallback(
     async (cred: CredentialEntry, isNew = false) => {
       if (!user) return;
@@ -455,7 +527,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (!user) return;
       const safeId = sanitizeId(email.id);
       const docPath = `users/${user.uid}/emails/${safeId}`;
-      const fromVal = (email.from || 'noreply@auth.demo-ios.app').trim().slice(0, 254);
+      const fromVal = (email.from || `noreply@${DEFAULT_CUSTOM_DOMAIN}`).trim().slice(0, 254);
       const toVal = (email.to || user.email || 'user@example.com').trim().slice(0, 254);
       const subjectVal = (email.subject || '(No Subject)').trim().slice(0, 300);
       const bodyVal = (email.body || ' ').slice(0, 16000);
@@ -526,6 +598,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         profileReady,
         authError,
         deviceTarget,
+        customDomain,
         cloudCredentials,
         cloudLogs,
         cloudMessages,
@@ -533,6 +606,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         signInWithGoogle,
         signOutUser,
         updateDeviceTarget,
+        updateCustomDomain,
         saveCredentialToCloud,
         deleteCredentialFromCloud,
         saveLogToCloud,

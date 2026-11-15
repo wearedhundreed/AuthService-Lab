@@ -1,7 +1,9 @@
 import express from 'express';
 import crypto from 'node:crypto';
+import dns from 'node:dns/promises';
 import fs from 'node:fs';
 import http from 'node:http';
+import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
@@ -276,7 +278,7 @@ function createInitialCredentials(): CredentialRecord[] {
     {
       id: 'cred-demo-ios',
       title: 'AuthDemo iOS',
-      domain: 'auth.demo-ios.app',
+      domain: 'securepasswordmanager.net',
       username: 'maya.lin@icloud.com',
       password: 'v7K9-mP3x-qR8w-nB2t',
       authKind: 'passkey',
@@ -368,7 +370,7 @@ function createInitialLogs(): AuthLogRecord[] {
       timestamp: new Date(now - 180_000).toISOString(),
       framework: 'LocalAuthentication',
       operation: 'LAContext.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)',
-      domain: 'auth.demo-ios.app',
+      domain: 'securepasswordmanager.net',
       biometricType: 'faceId',
       statusCode: 'errSecSuccess (0)',
       success: true,
@@ -380,7 +382,7 @@ function createInitialLogs(): AuthLogRecord[] {
       timestamp: new Date(now - 120_000).toISOString(),
       framework: 'AuthenticationServices',
       operation: 'ASAuthorizationController.performRequests([PasskeyAssertion])',
-      domain: 'auth.demo-ios.app',
+      domain: 'securepasswordmanager.net',
       biometricType: 'faceId',
       statusCode: 'ASAuthorizationError.none',
       success: true,
@@ -419,11 +421,11 @@ function createInitialEmails(): UniversalEmailRecord[] {
     {
       id: 'mail-passkey-otp',
       folder: 'inbox',
-      from: 'security@auth.demo-ios.app',
+      from: 'security@securepasswordmanager.net',
       to: 'maya.lin@icloud.com',
-      replyTo: 'support@auth.demo-ios.app',
+      replyTo: 'support@securepasswordmanager.net',
       subject: 'Your AuthDemo iOS verification code: 482915',
-      body: `Use the 6-digit verification code below to confirm your iPhone 12 Pro Passkey enrollment:\n\n482915\n\nThis message supports iOS UITextContentType.oneTimeCode AutoFill and universal email clients (Apple Mail, Gmail, Outlook, Proton, Fastmail).\n\nIf you did not request this Passkey registration on auth.demo-ios.app, safely ignore this message.`,
+      body: `Use the 6-digit verification code below to confirm your iPhone 12 Pro Passkey enrollment:\n\n482915\n\nThis message supports iOS UITextContentType.oneTimeCode AutoFill and universal email clients (Apple Mail, Gmail, Outlook, Proton, Fastmail).\n\nIf you did not request this Passkey registration on securepasswordmanager.net, safely ignore this message.`,
       providerHint: 'icloud',
       otpCode: '482915',
       isRead: false,
@@ -434,12 +436,12 @@ function createInitialEmails(): UniversalEmailRecord[] {
     {
       id: 'mail-universal-magic',
       folder: 'inbox',
-      from: 'accounts@auth.demo-ios.app',
+      from: 'accounts@securepasswordmanager.net',
       to: 'maya.lin@icloud.com',
       subject: 'Universal Link Sign-In for iPhone 12 Pro',
-      body: `Tap the Universal Link below from Apple Mail, Gmail, Outlook, or any mobile email app to complete passwordless authentication via Associated Domains (applinks:auth.demo-ios.app):\n\nhttps://auth.demo-ios.app/auth/callback?token=ml_9f8e7d6c5b4a\n\nOnce verified, you will be prompted to bind an ES256 Passkey to your Secure Enclave.`,
+      body: `Tap the Universal Link below from Apple Mail, Gmail, Outlook, or any mobile email app to complete passwordless authentication via Associated Domains (applinks:securepasswordmanager.net):\n\nhttps://securepasswordmanager.net/auth/callback?token=ml_9f8e7d6c5b4a\n\nOnce verified, you will be prompted to bind an ES256 Passkey to your Secure Enclave.`,
       providerHint: 'mailto',
-      magicLinkUrl: 'https://auth.demo-ios.app/auth/callback?token=ml_9f8e7d6c5b4a',
+      magicLinkUrl: 'https://securepasswordmanager.net/auth/callback?token=ml_9f8e7d6c5b4a',
       isRead: false,
       isStarred: false,
       createdAt: new Date(now - 3600_000 * 2).toISOString(),
@@ -905,7 +907,7 @@ async function startServer() {
 
   // WebAuthn / Passkey Registration Options & Verification
   app.post('/api/webauthn/register/options', (req, res) => {
-    const { rpId = 'auth.demo-ios.app', username = 'maya.lin@icloud.com', displayName = 'Maya Lin' } = req.body as {
+    const { rpId = 'securepasswordmanager.net', username = 'maya.lin@icloud.com', displayName = 'Maya Lin' } = req.body as {
       rpId?: string;
       username?: string;
       displayName?: string;
@@ -946,7 +948,7 @@ async function startServer() {
   app.post('/api/webauthn/register/verify', (req, res) => {
     const {
       challengeId,
-      domain = 'auth.demo-ios.app',
+      domain = 'securepasswordmanager.net',
       username = 'maya.lin@icloud.com',
       biometricType = 'faceId',
       mode = 'simulated-ios',
@@ -1047,7 +1049,7 @@ async function startServer() {
 
   // WebAuthn / Passkey Authentication Options & Verification
   app.post('/api/webauthn/authenticate/options', (req, res) => {
-    const { rpId = 'auth.demo-ios.app' } = req.body as { rpId?: string };
+    const { rpId = 'securepasswordmanager.net' } = req.body as { rpId?: string };
     const challengeId = crypto.randomUUID();
     const challenge = crypto.randomBytes(32).toString('base64url');
 
@@ -1222,6 +1224,217 @@ async function startServer() {
     res.json(result);
   });
 
+  // Apple App Site Association hosting endpoint (valid application/json, no redirects)
+  const handleServeAasa = (req: express.Request, res: express.Response) => {
+    const rawTeam = typeof req.query.teamId === 'string' ? req.query.teamId.trim().toUpperCase() : '';
+    const rawBundle = typeof req.query.bundleId === 'string' ? req.query.bundleId.trim() : '';
+    const teamId = /^[A-Z0-9]{10}$/.test(rawTeam)
+      ? rawTeam
+      : process.env.APPLE_TEAM_ID || 'A1B2C3D4E5';
+    const bundleId = /^[a-zA-Z0-9.-]{3,128}$/.test(rawBundle)
+      ? rawBundle
+      : process.env.APPLE_BUNDLE_ID || 'com.authserviceslab.ios';
+    const appId = `${teamId}.${bundleId}`;
+
+    const aasaDoc = {
+      applinks: {
+        details: [
+          {
+            appIDs: [appId],
+            components: [
+              { '/': '/auth/*', comment: 'OAuth & Passkey Universal Links' },
+              { '/': '/login', comment: 'Direct sign-in handoff' },
+            ],
+          },
+        ],
+      },
+      webcredentials: {
+        apps: [appId],
+      },
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.status(200).send(JSON.stringify(aasaDoc, null, 2));
+  };
+
+  app.get('/.well-known/apple-app-site-association', handleServeAasa);
+  app.get('/apple-app-site-association', handleServeAasa);
+
+  const isBlockedIp = (ip: string): boolean => {
+    if (net.isIPv4(ip)) {
+      const parts = ip.split('.').map(Number);
+      if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return true;
+      const [a, b] = parts;
+      if (a === 0 || a === 10 || a === 127) return true;
+      if (a === 169 && b === 254) return true;
+      if (a === 172 && b >= 16 && b <= 31) return true;
+      if (a === 192 && b === 168) return true;
+      if (a === 100 && b >= 64 && b <= 127) return true;
+      if (a >= 224) return true;
+      return false;
+    }
+    if (net.isIPv6(ip)) {
+      const lower = ip.toLowerCase();
+      if (lower === '::' || lower === '::1') return true;
+      if (lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80')) return true;
+      if (lower.startsWith('::ffff:')) {
+        return isBlockedIp(lower.replace('::ffff:', ''));
+      }
+      return false;
+    }
+    return true;
+  };
+
+  // Live Domain AASA Fetcher & Validator (SSRF-guarded)
+  app.post('/api/aasa/fetch', async (req, res) => {
+    const { domain: rawDomain, testUrl } = (req.body || {}) as {
+      domain?: string;
+      testUrl?: string;
+    };
+
+    const cleanDomain = (rawDomain || '')
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .split('/')[0]
+      .split('?')[0]
+      .split('#')[0]
+      .split(':')[0]
+      .replace(/\.+$/, '');
+
+    if (
+      !cleanDomain ||
+      cleanDomain.length > 253 ||
+      !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(cleanDomain)
+    ) {
+      res.status(400).json({
+        error: 'Enter a valid public domain name (e.g., auth.example.com).',
+      });
+      return;
+    }
+
+    if (
+      cleanDomain === 'localhost' ||
+      cleanDomain.endsWith('.localhost') ||
+      cleanDomain.endsWith('.local') ||
+      cleanDomain.endsWith('.internal') ||
+      net.isIP(cleanDomain) !== 0
+    ) {
+      res.status(400).json({
+        error: 'Local, internal, and raw IP hosts cannot be fetched by Apple CDN or the live validator.',
+      });
+      return;
+    }
+
+    try {
+      const resolved = await dns.lookup(cleanDomain, { all: true });
+      if (!resolved.length || resolved.some((r) => isBlockedIp(r.address))) {
+        res.status(400).json({
+          error: `Domain "${cleanDomain}" resolved to a private or reserved network address.`,
+        });
+        return;
+      }
+    } catch {
+      res.status(422).json({
+        error: `DNS lookup failed for "${cleanDomain}". Verify A/AAAA/CNAME records are propagated.`,
+      });
+      return;
+    }
+
+    const candidates = [
+      `https://${cleanDomain}/.well-known/apple-app-site-association`,
+      `https://${cleanDomain}/apple-app-site-association`,
+    ];
+
+    let lastStatus = 0;
+    let lastUrl = candidates[0];
+    let lastContentType = '';
+    let hadRedirect = false;
+    let redirectLocation = '';
+    let rawJson = '';
+    let fetchError: string | null = null;
+
+    for (const candidateUrl of candidates) {
+      lastUrl = candidateUrl;
+      try {
+        const response = await fetch(candidateUrl, {
+          method: 'GET',
+          redirect: 'manual',
+          signal: AbortSignal.timeout(8000),
+          headers: {
+            Accept: 'application/json',
+            'User-Agent': 'AuthServicesLab-AASA-Validator/1.0',
+          },
+        });
+
+        lastStatus = response.status;
+        lastContentType = response.headers.get('content-type') || '';
+
+        if (response.status >= 300 && response.status < 400) {
+          hadRedirect = true;
+          redirectLocation = response.headers.get('location') || '';
+          fetchError = `HTTP ${response.status} redirect returned (${redirectLocation || 'unknown target'}). Apple CDN rejects redirects on apple-app-site-association.`;
+          break;
+        }
+
+        if (response.ok) {
+          rawJson = await response.text();
+          fetchError = null;
+          break;
+        }
+      } catch (err) {
+        fetchError = err instanceof Error ? err.message : 'Network error connecting to domain.';
+      }
+    }
+
+    if (fetchError || !rawJson) {
+      res.status(422).json({
+        fetched: false,
+        domain: cleanDomain,
+        fetchedUrl: lastUrl,
+        httpStatus: lastStatus || null,
+        contentType: lastContentType || null,
+        hadRedirect,
+        redirectLocation: redirectLocation || null,
+        error:
+          fetchError ||
+          `Server returned HTTP ${lastStatus || 'error'} at ${lastUrl}. Host /.well-known/apple-app-site-association with HTTP 200 and Content-Type: application/json.`,
+      });
+      return;
+    }
+
+    const validation = validateAasaDocument(
+      rawJson,
+      testUrl || `https://${cleanDomain}/auth/callback`
+    );
+
+    if (!lastContentType.toLowerCase().includes('application/json')) {
+      validation.diagnostics.unshift({
+        level: 'warning',
+        field: 'Content-Type',
+        message: `Live server returned Content-Type "${lastContentType || 'none'}". Apple recommends "application/json".`,
+      });
+    } else {
+      validation.diagnostics.unshift({
+        level: 'pass',
+        field: 'HTTP Fetch',
+        message: `Fetched HTTP ${lastStatus} (${lastContentType}) directly from ${lastUrl} without redirects.`,
+      });
+    }
+
+    res.json({
+      fetched: true,
+      domain: cleanDomain,
+      fetchedUrl: lastUrl,
+      httpStatus: lastStatus,
+      contentType: lastContentType,
+      hadRedirect,
+      rawJson,
+      validation,
+    });
+  });
+
   // Audit Logs API
   app.get('/api/audit/logs', (_req, res) => {
     res.json({ logs: logsStore });
@@ -1260,7 +1473,7 @@ async function startServer() {
     const record: UniversalEmailRecord = {
       id: `mail-${crypto.randomUUID().slice(0, 8)}`,
       folder: body.folder || 'sent',
-      from: (body.from || 'developer@auth.demo-ios.app').trim(),
+      from: (body.from || 'developer@securepasswordmanager.net').trim(),
       to,
       replyTo: body.replyTo?.trim() || undefined,
       subject,
@@ -1283,7 +1496,7 @@ async function startServer() {
     const {
       kind = 'otp',
       to = 'maya.lin@icloud.com',
-      domain = 'auth.demo-ios.app',
+      domain = 'securepasswordmanager.net',
       providerHint = 'mailto',
     } = req.body as {
       kind?: 'otp' | 'magic-link' | 'passkey-alert' | 'relay';
@@ -1412,7 +1625,12 @@ async function startServer() {
   });
 
   // Automated Verification Test Suite
-  app.post('/api/tests/run', (_req, res) => {
+  app.post('/api/tests/run', (req, res) => {
+    const rawActiveDomain =
+      typeof (req.body as { activeDomain?: unknown } | undefined)?.activeDomain === 'string'
+        ? ((req.body as { activeDomain: string }).activeDomain.trim().toLowerCase() || 'securepasswordmanager.net')
+        : 'securepasswordmanager.net';
+    const suiteDomain = rawActiveDomain.replace(/^https?:\/\//, '').split('/')[0] || 'securepasswordmanager.net';
     const suiteStart = performance.now();
     const results: Array<{
       id: string;
@@ -1444,7 +1662,7 @@ async function startServer() {
     {
       const t0 = performance.now();
       const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-      const msg = Buffer.from('webauthn.get:auth.demo-ios.app');
+      const msg = Buffer.from(`webauthn.get:${suiteDomain}`);
       const sig = crypto.sign('sha256', msg, privateKey);
       const ok = crypto.verify('sha256', msg, publicKey, sig);
       results.push({
@@ -1453,7 +1671,7 @@ async function startServer() {
         category: 'Passkeys',
         passed: ok,
         durationMs: Math.max(1, Math.round(performance.now() - t0)),
-        assertion: 'ECDSA P-256 signature verified against SPKI public key.',
+        assertion: `ECDSA P-256 signature verified against SPKI public key for ${suiteDomain}.`,
         apiSymbol: 'ASAuthorizationPlatformPublicKeyCredentialAssertion',
       });
     }
@@ -1517,14 +1735,14 @@ async function startServer() {
         applinks: { details: [{ appIDs: ['A1B2C3D4E5.com.authserviceslab.ios'], components: [{ '/': '/auth/*' }] }] },
         webcredentials: { apps: ['A1B2C3D4E5.com.authserviceslab.ios'] },
       });
-      const aasaRes = validateAasaDocument(sampleAasa, 'https://auth.demo-ios.app/auth/callback');
+      const aasaRes = validateAasaDocument(sampleAasa, `https://${suiteDomain}/auth/callback`);
       results.push({
         id: 'test-aasa-schema',
         name: 'Associated Domains AASA webcredentials & applinks Check',
         category: 'AASA',
         passed: aasaRes.valid && Boolean(aasaRes.matchedUrlResult?.matchedWebCredentials),
         durationMs: Math.max(1, Math.round(performance.now() - t0)),
-        assertion: 'Validated TeamID.BundleID format, <128KB payload, and HTTPS Universal Link match.',
+        assertion: `Validated TeamID.BundleID format, <128KB payload, and HTTPS Universal Link match for ${suiteDomain}.`,
         apiSymbol: 'com.apple.developer.associated-domains',
       });
     }
@@ -1580,7 +1798,7 @@ async function startServer() {
     appendLog({
       framework: 'AuthenticationServices',
       operation: 'XCTest.AuthServicesIntegrationSuite.runAll()',
-      domain: 'auth.demo-ios.app',
+      domain: suiteDomain,
       biometricType: 'faceId',
       statusCode: passedCount === results.length ? 'XCTestPassed (0)' : 'XCTestWarning (1)',
       success: passedCount === results.length,
@@ -1614,18 +1832,24 @@ async function startServer() {
       taskMode = 'general',
       assistantRole = 'security-architect',
       deviceTarget = 'iphone-12-pro',
+      activeDomain = 'securepasswordmanager.net',
     } = req.body as {
       message?: string;
       history?: Array<{ role: 'user' | 'model'; text: string }>;
       taskMode?: 'fast' | 'general' | 'complex' | 'deep';
       assistantRole?: 'security-architect' | 'autofill-specialist' | 'xcode-debugger';
       deviceTarget?: 'iphone-12-pro' | 'iphone-16-pro';
+      activeDomain?: string;
     };
 
     if (!message || !message.trim()) {
       res.status(400).json({ error: 'Message text is required.' });
       return;
     }
+
+    const safeDomain =
+      (activeDomain || 'securepasswordmanager.net').trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0] ||
+      'securepasswordmanager.net';
 
     const deviceLabel =
       deviceTarget === 'iphone-12-pro'
@@ -1641,7 +1865,7 @@ async function startServer() {
         'You are a Senior iOS & Xcode Build/Runtime Debugger. Diagnose ASAuthorizationError codes, LAError codes (lockout, userCancel, biometryNotEnrolled), entitlements, provisioning profiles, and physical device testing steps.',
     };
 
-    const systemInstruction = `${roleInstructions[assistantRole] || roleInstructions['security-architect']} The developer is currently targeting ${deviceLabel}. Keep answers crisp, actionable, and grounded in Apple's official iOS frameworks.`;
+    const systemInstruction = `${roleInstructions[assistantRole] || roleInstructions['security-architect']} The developer is currently targeting ${deviceLabel}. The developer's configured Relying Party domain is "${safeDomain}". Keep answers crisp, actionable, and grounded in Apple's official iOS frameworks.`;
 
     let model = 'gemini-4-hydrogen';
     let thinkingLevel: ThinkingLevel = ThinkingLevel.MEDIUM;

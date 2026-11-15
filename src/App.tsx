@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { LogIn, LogOut, Cloud } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { LogIn, LogOut, Cloud, Globe } from 'lucide-react';
 import {
   AssistantRole,
   AuthLogEntry,
@@ -32,6 +32,7 @@ export default function App() {
     profileReady,
     authError,
     deviceTarget,
+    customDomain,
     cloudCredentials,
     cloudLogs,
     cloudMessages,
@@ -39,6 +40,7 @@ export default function App() {
     signInWithGoogle,
     signOutUser,
     updateDeviceTarget,
+    updateCustomDomain,
     saveCredentialToCloud,
     deleteCredentialFromCloud,
     saveLogToCloud,
@@ -47,6 +49,13 @@ export default function App() {
     saveEmailToCloud,
     deleteEmailFromCloud,
   } = useFirebaseAuth();
+
+  const [domainDraft, setDomainDraft] = useState(customDomain);
+  const [domainFeedback, setDomainFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDomainDraft(customDomain);
+  }, [customDomain]);
 
   const [activeSection, setActiveSection] = useState<NavSection>('biometrics');
   const [localCredentials, setLocalCredentials] = useState<CredentialEntry[]>([]);
@@ -172,7 +181,11 @@ export default function App() {
   const handleRunTestSuite = async () => {
     setIsRunningTests(true);
     try {
-      const res = await fetch('/api/tests/run', { method: 'POST' });
+      const res = await fetch('/api/tests/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activeDomain: customDomain }),
+      });
       if (res.ok) {
         const data = (await res.json()) as TestSuiteResponse;
         setTestSuiteResult(data);
@@ -246,6 +259,7 @@ export default function App() {
         taskMode,
         assistantRole,
         deviceTarget,
+        activeDomain: customDomain,
       }),
     });
 
@@ -334,7 +348,7 @@ export default function App() {
       const res = await fetch('/api/emails/simulate-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, to, providerHint }),
+        body: JSON.stringify({ kind, to, providerHint, domain: customDomain }),
       });
       if (res.ok) {
         const data = (await res.json()) as { email: UniversalEmailMessage; emails: UniversalEmailMessage[] };
@@ -401,7 +415,50 @@ export default function App() {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const cleaned = domainDraft
+                  .trim()
+                  .toLowerCase()
+                  .replace(/^https?:\/\//, '')
+                  .split('/')[0]
+                  .split(':')[0];
+                if (!cleaned || cleaned.length < 3 || !cleaned.includes('.') || /\s/.test(cleaned)) {
+                  setDomainFeedback('Enter a valid domain (e.g., auth.yourdomain.com)');
+                  return;
+                }
+                setDomainFeedback(null);
+                void updateCustomDomain(cleaned);
+                setDomainFeedback(`Active: ${cleaned}`);
+                setTimeout(() => setDomainFeedback(null), 2200);
+              }}
+              className="flex items-center gap-1.5"
+            >
+              <label htmlFor="workspace-custom-domain" className="inline-flex items-center gap-1 font-medium text-slate-600">
+                <Globe className="h-3.5 w-3.5 text-sky-600" />
+                <span>Domain:</span>
+              </label>
+              <input
+                id="workspace-custom-domain"
+                type="text"
+                value={domainDraft}
+                onChange={(e) => setDomainDraft(e.target.value)}
+                placeholder="auth.yourdomain.com"
+                className="w-44 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono text-xs text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="inline-flex min-h-[28px] items-center rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-800 whitespace-nowrap"
+              >
+                Apply
+              </button>
+              {domainFeedback && (
+                <span className="text-[11px] font-medium text-sky-700">{domainFeedback}</span>
+              )}
+            </form>
+
             {authError && (
               <span className="text-rose-700 font-medium">{authError}</span>
             )}
@@ -434,6 +491,7 @@ export default function App() {
         {activeSection === 'biometrics' && (
           <div className="grid items-start gap-8 lg:grid-cols-[1fr_400px]">
             <BiometricPasskeyLab
+              activeDomain={customDomain}
               biometricType={biometricType}
               onChangeBiometricType={setBiometricType}
               biometricOutcome={biometricOutcome}
@@ -448,6 +506,7 @@ export default function App() {
 
             <aside className="lg:sticky lg:top-20">
               <IosDeviceSimulator
+                activeDomain={customDomain}
                 credentials={activeCredentials}
                 deviceTarget={deviceTarget}
                 onChangeDeviceTarget={(t) => void updateDeviceTarget(t)}
@@ -477,10 +536,16 @@ export default function App() {
           />
         )}
 
-        {activeSection === 'aasa' && <AasaDomainValidator />}
+        {activeSection === 'aasa' && (
+          <AasaDomainValidator
+            activeDomain={customDomain}
+            onApplyGlobalDomain={(nextDomain) => void updateCustomDomain(nextDomain)}
+          />
+        )}
 
         {activeSection === 'email' && (
           <UniversalEmailClient
+            activeDomain={customDomain}
             emails={activeEmails}
             defaultUserEmail={user?.email}
             isSignedIn={Boolean(user)}
@@ -491,7 +556,7 @@ export default function App() {
           />
         )}
 
-        {activeSection === 'swift' && <SwiftImplementationKit />}
+        {activeSection === 'swift' && <SwiftImplementationKit activeDomain={customDomain} />}
 
         {activeSection === 'assistant' && (
           <GeminiAssistantView

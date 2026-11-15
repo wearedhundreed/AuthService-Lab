@@ -1,16 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, Globe } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, Globe, Download, RefreshCw } from 'lucide-react';
 import { AasaValidationResult } from '../types/auth';
 
-export const AasaDomainValidator: React.FC = () => {
+interface AasaDomainValidatorProps {
+  activeDomain: string;
+  onApplyGlobalDomain?: (domain: string) => void;
+}
+
+export const AasaDomainValidator: React.FC<AasaDomainValidatorProps> = ({
+  activeDomain,
+  onApplyGlobalDomain,
+}) => {
   const [teamId, setTeamId] = useState('A1B2C3D4E5');
   const [bundleId, setBundleId] = useState('com.authserviceslab.ios');
-  const [domain, setDomain] = useState('auth.demo-ios.app');
+  const [domain, setDomain] = useState(activeDomain);
   const [developerMode, setDeveloperMode] = useState(true);
-  const [testUrl, setTestUrl] = useState('https://auth.demo-ios.app/auth/callback');
+  const [testUrl, setTestUrl] = useState(`https://${activeDomain}/auth/callback`);
   const [rawJson, setRawJson] = useState('');
   const [validation, setValidation] = useState<AasaValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [isFetchingLive, setIsFetchingLive] = useState(false);
+  const [liveFetchNotice, setLiveFetchNotice] = useState<{
+    kind: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    setDomain(activeDomain);
+    setTestUrl(`https://${activeDomain}/auth/callback`);
+    setLiveFetchNotice(null);
+  }, [activeDomain]);
 
   const buildTemplate = useCallback((tid: string, bid: string) => {
     const appId = `${tid.trim()}.${bid.trim()}`;
@@ -65,6 +84,79 @@ export const AasaDomainValidator: React.FC = () => {
     }
   }, [rawJson, testUrl, runValidation]);
 
+  const handleFetchLiveAasa = async () => {
+    const cleanDomain = domain
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .split('/')[0];
+    if (!cleanDomain) return;
+
+    setIsFetchingLive(true);
+    setLiveFetchNotice(null);
+    try {
+      const res = await fetch('/api/aasa/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: cleanDomain, testUrl }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        fetched?: boolean;
+        fetchedUrl?: string;
+        httpStatus?: number | null;
+        contentType?: string | null;
+        rawJson?: string;
+        validation?: AasaValidationResult;
+        error?: string;
+      };
+
+      if (!res.ok || !data.fetched) {
+        setLiveFetchNotice({
+          kind: 'error',
+          message:
+            data.error ||
+            `Could not fetch AASA from https://${cleanDomain}/.well-known/apple-app-site-association.`,
+        });
+        return;
+      }
+
+      if (data.rawJson) {
+        setRawJson(data.rawJson);
+      }
+      if (data.validation) {
+        setValidation(data.validation);
+      }
+      setLiveFetchNotice({
+        kind: 'success',
+        message: `Loaded live AASA from ${data.fetchedUrl} (HTTP ${data.httpStatus}, ${data.contentType || 'no Content-Type'}).`,
+      });
+    } catch {
+      setLiveFetchNotice({
+        kind: 'error',
+        message: 'Network error while attempting to fetch live AASA document.',
+      });
+    } finally {
+      setIsFetchingLive(false);
+    }
+  };
+
+  const handleDownloadAasa = () => {
+    const blob = new Blob([rawJson || buildTemplate(teamId, bundleId)], {
+      type: 'application/json;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'apple-app-site-association';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const cleanDomainLabel =
+    domain.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0] || activeDomain;
+
   return (
     <div className="space-y-6">
       <div className="border-b border-slate-200 pb-5">
@@ -72,10 +164,10 @@ export const AasaDomainValidator: React.FC = () => {
           Associated Domains · /.well-known/apple-app-site-association
         </p>
         <h1 className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-          Associated Domains & AASA Validator
+          Associated Domains &amp; AASA Validator
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 leading-relaxed">
-          Verify your server&apos;s <code className="font-mono text-xs">apple-app-site-association</code> schema, Team ID + Bundle ID bindings, 128 KB CDN ceiling, and Universal Link URL routing before deploying Passkeys or Password AutoFill.
+          Fetch and verify your live domain&apos;s <code className="font-mono text-xs">apple-app-site-association</code> schema, Team ID + Bundle ID bindings, 128 KB CDN ceiling, and Universal Link URL routing before deploying Passkeys or Password AutoFill.
         </p>
       </div>
 
@@ -84,7 +176,7 @@ export const AasaDomainValidator: React.FC = () => {
         <div className="lg:col-span-5 space-y-5">
           <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
             <h2 className="font-display text-sm font-semibold text-slate-900">
-              Xcode App & Domain Configuration
+              Xcode App &amp; Domain Configuration
             </h2>
 
             <div className="grid grid-cols-2 gap-3">
@@ -116,13 +208,64 @@ export const AasaDomainValidator: React.FC = () => {
               <label className="mb-1 block text-xs font-medium text-slate-700">
                 Relying Party Domain
               </label>
-              <input
-                type="text"
-                value={domain}
-                onChange={(e) => setDomain(e.target.value.toLowerCase())}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs text-slate-900 focus:border-sky-500 focus:outline-none"
-              />
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  value={domain}
+                  onChange={(e) => {
+                    const next = e.target.value.toLowerCase();
+                    setDomain(next);
+                    const cleaned = next.trim().replace(/^https?:\/\//, '').split('/')[0];
+                    if (cleaned) {
+                      setTestUrl(`https://${cleaned}/auth/callback`);
+                    }
+                  }}
+                  placeholder="auth.yourdomain.com"
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs text-slate-900 focus:border-sky-500 focus:outline-none"
+                />
+                {onApplyGlobalDomain && cleanDomainLabel !== activeDomain && (
+                  <button
+                    type="button"
+                    onClick={() => onApplyGlobalDomain(cleanDomainLabel)}
+                    className="min-h-[38px] rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-900 hover:bg-sky-100 whitespace-nowrap"
+                  >
+                    Set Global
+                  </button>
+                )}
+              </div>
             </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void handleFetchLiveAasa()}
+                disabled={isFetchingLive}
+                className="inline-flex min-h-[38px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-60 whitespace-nowrap"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isFetchingLive ? 'animate-spin' : ''}`} />
+                {isFetchingLive ? 'Fetching Live AASA...' : 'Fetch Live AASA'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadAasa}
+                className="inline-flex min-h-[38px] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 whitespace-nowrap"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download JSON
+              </button>
+            </div>
+
+            {liveFetchNotice && (
+              <div
+                className={`rounded-lg border px-3 py-2 text-xs leading-relaxed ${
+                  liveFetchNotice.kind === 'success'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                    : 'border-rose-200 bg-rose-50 text-rose-900'
+                }`}
+              >
+                {liveFetchNotice.message}
+              </div>
+            )}
 
             <div className="flex items-center justify-between pt-1">
               <div>
@@ -151,20 +294,34 @@ export const AasaDomainValidator: React.FC = () => {
             </div>
 
             <div className="rounded-lg bg-slate-950 p-3.5 font-mono text-[11px] leading-relaxed text-slate-100">
-              <div className="text-slate-400">Signing & Capabilities &rarr; Associated Domains</div>
+              <div className="text-slate-400">Signing &amp; Capabilities &rarr; Associated Domains</div>
               <div className="mt-1 text-sky-300">
-                webcredentials:{domain}{developerMode ? '?mode=developer' : ''}
+                webcredentials:{cleanDomainLabel}{developerMode ? '?mode=developer' : ''}
               </div>
               <div className="text-sky-300">
-                applinks:{domain}{developerMode ? '?mode=developer' : ''}
+                applinks:{cleanDomainLabel}{developerMode ? '?mode=developer' : ''}
               </div>
             </div>
+
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Tip: This server also serves a valid file at{' '}
+              <a
+                href={`/.well-known/apple-app-site-association?teamId=${encodeURIComponent(teamId)}&bundleId=${encodeURIComponent(bundleId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-sky-700 underline"
+              >
+                /.well-known/apple-app-site-association
+              </a>
+              , or download the file above and host it at{' '}
+              <code className="font-mono text-slate-700">https://{cleanDomainLabel}/.well-known/apple-app-site-association</code>.
+            </p>
           </div>
 
           {/* URL Route Tester */}
           <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-3">
             <h2 className="font-display text-sm font-semibold text-slate-900">
-              Universal Link & WebCredentials Route Matcher
+              Universal Link &amp; WebCredentials Route Matcher
             </h2>
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -223,11 +380,11 @@ export const AasaDomainValidator: React.FC = () => {
         <div className="lg:col-span-7 space-y-5">
           <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
-              <span className="font-mono text-xs font-medium text-slate-700">
-                https://{domain}/.well-known/apple-app-site-association
+              <span className="font-mono text-xs font-medium text-slate-700 truncate">
+                https://{cleanDomainLabel}/.well-known/apple-app-site-association
               </span>
               {validation && (
-                <span className="font-mono text-xs text-slate-500 tabular-nums">
+                <span className="font-mono text-xs text-slate-500 tabular-nums shrink-0 ml-2">
                   {validation.byteSize} / {validation.maxBytes.toLocaleString()} bytes
                 </span>
               )}

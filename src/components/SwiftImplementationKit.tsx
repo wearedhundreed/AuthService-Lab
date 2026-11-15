@@ -2,15 +2,20 @@ import React, { useState } from 'react';
 import { Copy, Check, Download, FileCode2 } from 'lucide-react';
 import { SWIFT_IMPLEMENTATION_FILES } from '../data/swiftImplementation';
 
-export const SwiftImplementationKit: React.FC = () => {
+interface SwiftImplementationKitProps {
+  activeDomain: string;
+}
+
+export const SwiftImplementationKit: React.FC<SwiftImplementationKitProps> = ({ activeDomain }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [copied, setCopied] = useState(false);
 
   const activeFile = SWIFT_IMPLEMENTATION_FILES[selectedIndex];
+  const resolvedCode = activeFile.code.replaceAll('securepasswordmanager.net', activeDomain);
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(activeFile.code);
+      await navigator.clipboard.writeText(resolvedCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -19,7 +24,7 @@ export const SwiftImplementationKit: React.FC = () => {
   };
 
   const handleDownload = () => {
-    const blob = new Blob([activeFile.code], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([resolvedCode], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -34,13 +39,13 @@ export const SwiftImplementationKit: React.FC = () => {
     <div className="space-y-6">
       <div className="border-b border-slate-200 pb-5">
         <p className="text-xs font-medium text-sky-700">
-          Xcode 16 · iPhone 12 Pro (arm64 · iOS 15–18) · Swift Concurrency · SwiftUI
+          Xcode 16 · iPhone 12 Pro (arm64 · iOS 15–18) · Domain: {activeDomain}
         </p>
         <h1 className="mt-1 font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
           iOS Swift Implementation Kit
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 leading-relaxed">
-          Complete, copy-ready Swift modules implementing <code className="font-mono text-xs">ASAuthorizationController</code>, <code className="font-mono text-xs">LAContext</code> biometrics, Keychain <code className="font-mono text-xs">.biometryCurrentSet</code> storage, and <code className="font-mono text-xs">ASCredentialProviderViewController</code> for your iPhone 12 Pro.
+          Complete, copy-ready Swift modules implementing <code className="font-mono text-xs">ASAuthorizationController</code>, <code className="font-mono text-xs">LAContext</code> biometrics, Keychain <code className="font-mono text-xs">.biometryCurrentSet</code> storage, and <code className="font-mono text-xs">ASCredentialProviderViewController</code> configured for <code className="font-mono text-xs">{activeDomain}</code> on your iPhone 12 Pro.
         </p>
       </div>
 
@@ -91,8 +96,10 @@ export const SwiftImplementationKit: React.FC = () => {
                 Connect your <span className="font-semibold text-slate-900">iPhone 12 Pro</span> via USB-C/Lightning, enable <span className="font-semibold text-slate-900">Developer Mode</span> in Settings &rarr; Privacy &amp; Security, and select it as the Run Destination (<code className="font-mono text-slate-800">arm64</code>).
               </li>
               <li>
-                Enable <span className="font-semibold text-slate-900">Associated Domains</span> &amp;{' '}
-                <span className="font-semibold text-slate-900">Sign in with Apple</span> under Signing &amp; Capabilities, and toggle <span className="font-semibold text-slate-900">Associated Domains Development</span> in Settings &rarr; Developer.
+                Under Signing &amp; Capabilities &rarr; <span className="font-semibold text-slate-900">Associated Domains</span>, add{' '}
+                <code className="font-mono text-slate-800">webcredentials:{activeDomain}</code> and{' '}
+                <code className="font-mono text-slate-800">applinks:{activeDomain}</code>, enable{' '}
+                <span className="font-semibold text-slate-900">Sign in with Apple</span>, and toggle <span className="font-semibold text-slate-900">Associated Domains Development</span> in Settings &rarr; Developer.
               </li>
               <li>
                 Add <code className="font-mono text-slate-800">NSFaceIDUsageDescription</code> in{' '}
@@ -136,7 +143,7 @@ export const SwiftImplementationKit: React.FC = () => {
             </div>
 
             <pre className="max-h-[620px] overflow-auto bg-slate-950 p-5 font-mono text-xs leading-relaxed text-slate-100">
-              <code>{activeFile.code}</code>
+              <code>{resolvedCode}</code>
             </pre>
           </div>
         </div>

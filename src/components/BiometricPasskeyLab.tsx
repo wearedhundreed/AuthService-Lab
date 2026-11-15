@@ -9,6 +9,7 @@ import {
 import { PasskeyRegistrationVisualizer } from './PasskeyRegistrationVisualizer';
 
 interface BiometricPasskeyLabProps {
+  activeDomain: string;
   biometricType: BiometricType;
   onChangeBiometricType: (type: BiometricType) => void;
   biometricOutcome: BiometricOutcome;
@@ -22,6 +23,7 @@ interface BiometricPasskeyLabProps {
 }
 
 export const BiometricPasskeyLab: React.FC<BiometricPasskeyLabProps> = ({
+  activeDomain,
   biometricType,
   onChangeBiometricType,
   biometricOutcome,
@@ -207,6 +209,7 @@ export const BiometricPasskeyLab: React.FC<BiometricPasskeyLabProps> = ({
 
       {/* Mock Passkey Registration Payload & AuthenticationServices Visualizer */}
       <PasskeyRegistrationVisualizer
+        activeDomain={activeDomain}
         biometricType={biometricType}
         onCapturePayload={onCapturePayload}
       />

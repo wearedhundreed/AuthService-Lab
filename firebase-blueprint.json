@@ -25,6 +25,11 @@
           "enum": ["iphone-12-pro", "iphone-16-pro"],
           "maxLength": 32
         },
+        "customDomain": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 253
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
