@@ -13,6 +13,7 @@ const NAV_ITEMS: Array<{ id: NavSection; label: string }> = [
   { id: 'passwords', label: 'Passwords Vault' },
   { id: 'aasa', label: 'AASA & Domains' },
   { id: 'email', label: 'Universal Email' },
+  { id: 'tasks', label: 'Google Tasks' },
   { id: 'swift', label: 'Swift Code' },
   { id: 'assistant', label: 'AI Assistant' },
 ];
@@ -37,7 +38,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           AuthServices Lab
         </a>
 
-        <nav className="hidden md:flex items-center gap-4 lg:gap-6" aria-label="Primary sections">
+        <nav className="hidden md:flex items-center gap-3 lg:gap-5 xl:gap-6" aria-label="Primary sections">
           {NAV_ITEMS.map((item) => {
             const isActive = activeSection === item.id;
             return (

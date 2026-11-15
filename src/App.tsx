@@ -22,6 +22,7 @@ import { BiometricPasskeyLab } from './components/BiometricPasskeyLab';
 import { PasswordsVaultManager } from './components/PasswordsVaultManager';
 import { AasaDomainValidator } from './components/AasaDomainValidator';
 import { UniversalEmailClient } from './components/UniversalEmailClient';
+import { GoogleTasksView } from './components/GoogleTasksView';
 import { SwiftImplementationKit } from './components/SwiftImplementationKit';
 import { GeminiAssistantView } from './components/GeminiAssistantView';
 import { TestSuiteDrawer } from './components/TestSuiteDrawer';
@@ -40,7 +41,9 @@ export default function App() {
     cloudMessages,
     cloudEmails,
     cloudAbmAccounts,
+    workspaceAccessToken,
     signInWithGoogle,
+    clearWorkspaceAccessToken,
     signOutUser,
     updateDeviceTarget,
     updateCustomDomain,
@@ -730,6 +733,16 @@ export default function App() {
             onDeleteEmail={handleDeleteEmail}
             onSimulateAuthEmail={handleSimulateAuthEmail}
             onResetEmails={handleResetEmails}
+          />
+        )}
+
+        {activeSection === 'tasks' && (
+          <GoogleTasksView
+            accessToken={workspaceAccessToken}
+            activeDomain={customDomain}
+            userEmail={user?.email}
+            onConnectGoogleTasks={signInWithGoogle}
+            onTokenExpired={clearWorkspaceAccessToken}
           />
         )}
 

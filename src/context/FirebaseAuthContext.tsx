@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { GoogleAuthProvider, User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import {
   collection,
   deleteDoc,
@@ -40,7 +40,9 @@ interface FirebaseContextValue {
   cloudMessages: ChatMessageItem[];
   cloudEmails: UniversalEmailMessage[] | null;
   cloudAbmAccounts: AbmAccountEntry[] | null;
-  signInWithGoogle: () => Promise<void>;
+  workspaceAccessToken: string | null;
+  signInWithGoogle: () => Promise<string | null>;
+  clearWorkspaceAccessToken: () => void;
   signOutUser: () => Promise<void>;
   updateDeviceTarget: (target: DeviceTarget) => Promise<void>;
   updateCustomDomain: (domain: string) => Promise<void>;
@@ -103,6 +105,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [cloudMessages, setCloudMessages] = useState<ChatMessageItem[]>([]);
   const [cloudEmails, setCloudEmails] = useState<UniversalEmailMessage[] | null>(null);
   const [cloudAbmAccounts, setCloudAbmAccounts] = useState<AbmAccountEntry[] | null>(null);
+  const [workspaceAccessToken, setWorkspaceAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
@@ -161,6 +164,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setCloudMessages([]);
         setCloudEmails(null);
         setCloudAbmAccounts(null);
+        setWorkspaceAccessToken(null);
       }
     });
 
@@ -380,17 +384,27 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, [authReady, profileReady, user]);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (): Promise<string | null> => {
     setAuthError(null);
     try {
-      await signInWithPopup(auth, googleAuthProvider);
+      const result = await signInWithPopup(auth, googleAuthProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken ?? null;
+      setWorkspaceAccessToken(token);
+      return token;
     } catch (err) {
       setAuthError((err as Error).message);
+      return null;
     }
+  }, []);
+
+  const clearWorkspaceAccessToken = useCallback(() => {
+    setWorkspaceAccessToken(null);
   }, []);
 
   const signOutUser = useCallback(async () => {
     setAuthError(null);
+    setWorkspaceAccessToken(null);
     await signOut(auth);
   }, []);
 
@@ -712,7 +726,9 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         cloudMessages,
         cloudEmails,
         cloudAbmAccounts,
+        workspaceAccessToken,
         signInWithGoogle,
+        clearWorkspaceAccessToken,
         signOutUser,
         updateDeviceTarget,
         updateCustomDomain,

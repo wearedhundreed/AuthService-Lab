@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: authservices-lab
+    runtime: node
+    plan: free
+    autoDeploy: true
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: NODE_ENV=production node server.ts
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22.23.2
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: APPLE_TEAM_ID
+        sync: false
+      - key: APPLE_BUNDLE_ID
+        sync: false

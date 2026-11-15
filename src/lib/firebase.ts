@@ -4,9 +4,21 @@ import { doc, getDocFromServer, getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const firestoreDatabaseId =
+  (firebaseConfig as { firestoreDatabaseId?: string }).firestoreDatabaseId ||
+  'ai-studio-authserviceslab-27df2365-2cde-4975-8218-9e0ed4c31278';
+export const db = getFirestore(app, firestoreDatabaseId);
 export const auth = getAuth(app);
+
+export const GOOGLE_TASKS_SCOPES = [
+  'https://www.googleapis.com/auth/tasks',
+  'https://www.googleapis.com/auth/tasks.readonly',
+] as const;
+
 export const googleAuthProvider = new GoogleAuthProvider();
+for (const scope of GOOGLE_TASKS_SCOPES) {
+  googleAuthProvider.addScope(scope);
+}
 
 export enum OperationType {
   CREATE = 'create',

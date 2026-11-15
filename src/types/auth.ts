@@ -1,4 +1,4 @@
-export type NavSection = 'biometrics' | 'passwords' | 'aasa' | 'email' | 'swift' | 'assistant';
+export type NavSection = 'biometrics' | 'passwords' | 'aasa' | 'email' | 'tasks' | 'swift' | 'assistant';
 
 export type DeviceTarget = 'iphone-12-pro' | 'iphone-16-pro';
 
